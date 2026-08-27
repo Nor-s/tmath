@@ -1,0 +1,4 @@
+interface:
+  display_name: "tmath Game"
+  short_description: "Build small experimental retained-Lua tmath game loops"
+  default_prompt: "Use $tmath-game to create a small experimental retained-Lua tmath game loop with only the required UI, Input, Runtime, and Audio sidecars."

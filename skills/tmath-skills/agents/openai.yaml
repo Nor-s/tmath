@@ -1,0 +1,4 @@
+interface:
+  display_name: "tmath Authoring"
+  short_description: "Author portable source-grounded tmath scenes"
+  default_prompt: "Use $tmath-skills to build a portable, source-grounded tmath scene with the appropriate Lua or JavaScript API and evidence profile."

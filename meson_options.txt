@@ -1,0 +1,68 @@
+option(
+    'engines',
+    type: 'array',
+    choices: ['cpu', 'gl'],
+    value: ['cpu'],
+    description: 'Build the selected tmath render engines',
+)
+option(
+    'bundled_thorvg',
+    type: 'boolean',
+    value: false,
+    description: 'Build the pinned ThorVG subproject',
+)
+option(
+    'lua',
+    type: 'feature',
+    value: 'enabled',
+    description: 'Build the Lua scene binding and CLI',
+)
+option('tests', type: 'boolean', value: true, description: 'Build tests')
+option(
+    'examples',
+    type: 'boolean',
+    value: true,
+    description: 'Install Lua examples',
+)
+option(
+    'latex',
+    type: 'feature',
+    value: 'disabled',
+    description: 'Build the experimental native LaTeX-to-SVG command',
+)
+option(
+    'ui',
+    type: 'boolean',
+    value: false,
+    description: 'Build the experimental interactive UI module',
+)
+option(
+    'input',
+    type: 'boolean',
+    value: false,
+    description: 'Build the experimental keyboard, pointer, and camera input module',
+)
+option(
+    'lua_runtime',
+    type: 'boolean',
+    value: false,
+    description: 'Build the experimental retained Lua fixed-step runtime module',
+)
+option(
+    'audio',
+    type: 'boolean',
+    value: false,
+    description: 'Build the experimental synchronized audio module',
+)
+option(
+    'diagram',
+    type: 'feature',
+    value: 'disabled',
+    description: 'Build the experimental diagram authoring module',
+)
+option(
+    'chart',
+    type: 'feature',
+    value: 'disabled',
+    description: 'Build the experimental chart authoring module',
+)

@@ -1,0 +1,4 @@
+interface:
+  display_name: "tmath VS Code"
+  short_description: "Use and develop tmath's VS Code visualization host"
+  default_prompt: "Use $tmath-vscode to configure, use, or improve tmath Lua Preview, IntelliSense, source-linked manifests, and series delivery in VS Code."

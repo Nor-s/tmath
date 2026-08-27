@@ -1,0 +1,15 @@
+/build*/
+/media/
+/review*.png
+/test-*.png
+/*.mp4
+/*.gif
+compile_commands.json
+/subprojects/.wraplock
+/subprojects/lua/
+/subprojects/miniaudio-*/
+/subprojects/thorvg/
+/subprojects/packagecache/
+
+**/temp/**
+.vscode
