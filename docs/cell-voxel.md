@@ -145,4 +145,4 @@ Use the callback's final `time` argument for field animation. Shape occupancy ma
 
 Sampled Groups are retained containers with children, so the ordinary geometry Morph API intentionally returns `NonSupport` for them. Morph remains restricted to compatible childless Polygon, Plot, Path, and Curve geometry. This avoids a second competing time model and removes the need to allocate duplicate source and target fields.
 
-See the [circle-to-ellipse Cell example](../examples/lua/cell_field.lua) and [sphere-to-ellipsoid Voxel example](../examples/lua/voxel_field.lua). Their editable Lua/JavaScript versions are in the WASM Playground under **tmath**.
+See the [circle-to-ellipse Cell example](../src/examples/lua/cell_field.lua) and [sphere-to-ellipsoid Voxel example](../src/examples/lua/voxel_field.lua). Their editable Lua/JavaScript versions are in the WASM Playground under **tmath**.

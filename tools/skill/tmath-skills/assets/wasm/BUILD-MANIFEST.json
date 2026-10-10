@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "project": "tmath",
+  "projectVersion": "0.1.0",
+  "sourceCommit": "377e167b353d",
+  "sourceDirty": true,
+  "buildDate": "2026-10-10",
+  "toolchain": {
+    "emscripten": "4.0.19",
+    "buildType": "minsize",
+    "optimization": [
+      "-Oz",
+      "-flto"
+    ],
+    "renderer": "ThorVG CPU engine",
+    "thorvg": "1.2.0 (87b2684)",
+    "lua": "5.4.8"
+  },
+  "features": {
+    "javascriptBuilder": true,
+    "luaRuntime": true,
+    "retainedLuaRuntime": true,
+    "canvasRgba": true,
+    "glRenderer": false,
+    "renderEngineSelection": true,
+    "interactiveUi": true,
+    "interactiveInput": true,
+    "audio": true,
+    "runtimeSoundEvents": true,
+    "diagramAuthoring": true
+  },
+  "artifacts": [
+    {
+      "path": "tmath-wasm.js",
+      "bytes": 25222,
+      "sha256": "553736c1eca81e089b162b3eb448329d305f8bd2946ed43537fc47e7ed747b71"
+    },
+    {
+      "path": "tmath-wasm.wasm",
+      "bytes": 920609,
+      "sha256": "59256baa0daf28bbab20b7ebd46905afe1830ab07632022b04cdf8795410fce4"
+    },
+    {
+      "path": "client.js",
+      "bytes": 46338,
+      "sha256": "8ef086a817d77ecc692339e7c114f2f2e3e47868d6c1787fef3ad4b2b1a52b74"
+    },
+    {
+      "path": "client.d.ts",
+      "bytes": 12712,
+      "sha256": "31b799808991f6686fe83b57fb5e4b67244a5108c8e8cf0e91436f355429950f"
+    },
+    {
+      "path": "bindings.js",
+      "bytes": 40561,
+      "sha256": "64c8246c1967777a87fd12461a409ffde1f6026ba6924f0cb46a03008e4eb8b5"
+    },
+    {
+      "path": "bindings.d.ts",
+      "bytes": 14717,
+      "sha256": "994ccefba36aef887d71e8dcbec248e1b0b2a80fe33ef6ea16b3809acb49ec18"
+    },
+    {
+      "path": "Pretendard.ttf",
+      "bytes": 2725828,
+      "sha256": "6d0af5258997aec7354a6e340fc2325ba321c410ca48b3af858c8c3d6e92a324"
+    },
+    {
+      "path": "Pretendard-OFL.txt",
+      "bytes": 4418,
+      "sha256": "85fce85e25260b03777bf10373d3bd9363b9da96d9e0ca86a280dd37ed7667a0"
+    },
+    {
+      "path": "IBMPlexSansKR-SemiBold.ttf",
+      "bytes": 2481868,
+      "sha256": "c1640995dae522401987918ac5caf90c2d7ecc90552216b653c97754fa941eb3"
+    },
+    {
+      "path": "IBM-Plex-Sans-KR-OFL.txt",
+      "bytes": 4362,
+      "sha256": "d741e57d5f865e294df801f96b7b5161a88b211df65887e4358d271c9fc5fb4f"
+    },
+    {
+      "path": "SourceSerif4-Semibold.ttf",
+      "bytes": 272088,
+      "sha256": "36db62940cb5728b12b1802476dc7fcf4c6c519a7bdd476ba23a4e555fc4655f"
+    },
+    {
+      "path": "Source-Serif-4-OFL.txt",
+      "bytes": 4492,
+      "sha256": "75784a295293a8992f5a8d99210566e0064a012e6dab6731305e3787f15896c7"
+    }
+  ]
+}

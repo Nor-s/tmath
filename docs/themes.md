@@ -6,7 +6,7 @@ Set the Theme before creating any Object, mounting a Viewport, or scheduling a t
 
 ## Built-in presets
 
-`ProWhite` is the default Theme. `ThreeBlueOneEyes` preserves the original dark, colorful lesson palette under the canonical Lua/JavaScript token `"3_blue_1_eyes"`. `ProWhite` and `ProBlack` are restrained professional presets for papers, lecture material, and LaTeX-oriented figures with light and dark polarity respectively.
+`ProWhite` is the default Theme. `ThreeBlueOneEyes` preserves the original dark, colorful palette under the canonical Lua/JavaScript token `"3_blue_1_eyes"`. `ProWhite` and `ProBlack` are restrained professional presets for papers, lecture material, and LaTeX-oriented figures with light and dark polarity respectively.
 
 | Token | 3 Blue 1 Eyes | Pro White (default) | Pro Black |
 |---|---|---|---|
@@ -59,7 +59,7 @@ Use roles only for their meaning. `lhs` and `rhs` conventionally name the first 
 - An explicit shape `gradient=false`, `gradient=true`, or `gradient=<color>` wins over the Theme. A color enables the gradient and replaces its end stop; `true` uses the Theme end stop.
 - An eligible shape with no explicit color receives the next object color when it joins the Scene. The cursor wraps after the configured color count.
 - `result` and `focus` never consume or advance the automatic object cycle.
-- Group, Text, Space, Svg, Image, and Cell do not consume object colors and do not receive gradients. A Group's eligible descendants consume colors in depth-first attachment order.
+- Group, Text, Space, Picture, and Cell do not consume object colors and do not receive gradients. A Group's eligible descendants consume colors in depth-first attachment order.
 - Text omitting `font`, `size`, or color receives those fields independently from its `role`. Explicit text fields remain unchanged.
 - A Space receives themed X/Y/Z axes, grid, and number-label colors for fields left at their constructor defaults.
 - An automatically themed morph or Scene-transition target inherits the source object's color and gradient. An explicitly styled target retains its authored paint.
@@ -88,7 +88,7 @@ if (scene->theme(theme) != tmath::Result::Success) {
 }
 ```
 
-`Theme::ColorLimit` is 10. `objectCount` must be between 1 and 10, `objectWidth` and every text size must be positive and finite, and every font name must be non-empty. `Theme::color(ThemeColorRole)` resolves the same semantic roles for C++ authors. `Scene::theme()` returns the Scene's copied Theme. `Object::strokeWidth()` marks a C++ object's width as explicit; `Object::gradient(bool)` explicitly enables or disables the effect and `Object::gradient(Color)` enables it with an explicit end stop. Directly authored non-default `style.gradient`/`style.gradientEnd` fields are also preserved at attachment.
+`Theme::ColorLimit` is 10. `objectCount` must be between 1 and 10, `objectWidth` and every text size must be positive and finite, and every font name must be non-empty. `Theme::color(ThemeColorRole)` resolves the same semantic roles for C++ authors. `Scene::theme()` returns the Scene's copied Theme. `Object::strokeWidth()` marks a C++ object's width as explicit; `Object::gradient(bool)` explicitly enables or disables the legacy linear effect, `Object::gradient(Color)` enables it with an explicit end stop, and `Object::gradient(const Gradient&)` sets a linear, radial, or conic description (see [Gradient kinds](#gradient-kinds)). Directly authored non-default `style.gradient`/`style.gradientEnd` fields are also preserved at attachment.
 
 ## Lua and JavaScript
 
@@ -138,4 +138,27 @@ scene:indicate(subject) -- Theme focus; the subject's cyclic identity is restore
 
 JavaScript uses the same shape through `SceneConfig.theme`; `TextOptions.role` accepts `"h1"`, `"h2"`, `"h3"`, `"text"`, or `"code"`.
 
-Every gradient is linear. Open paths run from their first to last point; closed shapes use their local bounding-box diagonal. The end stop contributes RGB while the resolved stroke/fill opacity remains unchanged. Gradient paint is exported to Lottie as `gs` (stroke) or `gf` (fill).
+### Gradient kinds
+
+Theme gradients and `gradient = true | <color>` produce the legacy two-stop linear ramp: open paths run from their first to last point, closed shapes use their projected bounding-box diagonal, the start stop is the resolved stroke/fill color, and the end stop contributes RGB while the resolved stroke/fill opacity remains unchanged.
+
+A shape can instead request any of ThorVG's three gradient kinds with a table:
+
+```lua
+scene:rectangle { size = {3, 2}, fill = "#fff", gradient = {
+    type = "linear", stops = {"accent", "warning"}, from = {-1.5, 0}, to = {1.5, 0} } }
+scene:circle { radius = 1, fill = "#fff", gradient = {
+    type = "radial", stops = {{0, "#ffd166"}, {0.6, "accent"}, {1, "surface"}},
+    center = {0, 0}, radius = 1, focal = {-0.3, 0.3}, focal_radius = 0 } }
+scene:circle { radius = 1, fill = "#fff", gradient = {
+    type = "conic", stops = {"accent", "success", "warning", "accent"}, angle = -90 } }
+```
+
+- `type` is required: `"linear"`, `"radial"`, or `"conic"`. Unknown keys and geometry keys that do not belong to the kind are errors.
+- `stops` holds 2 to 8 entries. Bare colors are spaced evenly; `{offset, color}` pairs need finite, non-decreasing offsets in 0..1. Colors accept hex or Theme roles. Omitting `stops` keeps the paint-color to end-stop ramp.
+- Explicit stops own their RGB and alpha; each stop alpha is multiplied by the resolved stroke/fill alpha (which already carries object opacity and fill progress). A transparent fill therefore still paints nothing, so give a filled gradient shape an opaque `fill`.
+- Geometry is optional and authored in the object's local coordinates; it is projected through the same model and camera transform as the shape points, so it follows `shift`, `scale`, rotation, and Viewport mapping. `linear` takes `from` + `to` together; `radial` takes `center`, `radius > 0`, `focal`, and `focal_radius >= 0`; `conic` takes `center` and `angle` (degrees, clockwise from local +x as seen on screen; stops advance clockwise).
+- Omitted geometry is derived from the projected shape: linear follows the legacy rule above; radial uses the bounding-box center with half the diagonal (a Circle uses its own center and radius); conic uses the bounding-box center with angle 0.
+- A gradient table counts as an explicit gradient, so the Theme does not override it. Animations between two gradients of the same kind, stop count, and explicit geometry interpolate stops and geometry; other pairs switch at the midpoint.
+
+C++ authors build a `tmath::Gradient` (`type`, `stops[Gradient::StopLimit]`, `stopCount`, `from`/`to` with `line`, `center` with `centered`, `radius` with `sized`, `focal` with `focused`, `focalRadius`, `angle`) and call `Object::gradient(const Gradient&)`, which returns `Result::InvalidArguments` when `Gradient::valid()` fails. Both the CPU and GL ThorVG engines support all three kinds (ThorVG 1.2.0 or newer).

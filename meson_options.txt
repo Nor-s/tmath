@@ -2,8 +2,29 @@ option(
     'engines',
     type: 'array',
     choices: ['cpu', 'gl'],
-    value: ['cpu'],
-    description: 'Build the selected tmath render engines',
+    value: ['cpu', 'gl'],
+    description: 'Build the selected tmath render engines (GL is dropped with a warning on Emscripten or when the platform has no OpenGL)',
+)
+option(
+    'modules',
+    type: 'array',
+    choices: ['', 'ui', 'input', 'runtime', 'audio', 'motion', 'diagram', 'all'],
+    value: [''],
+    description: 'Build selected optional tmath native modules',
+)
+option(
+    'savers',
+    type: 'array',
+    choices: ['', 'gif', 'video', 'all'],
+    value: ['all'],
+    description: 'Build selected tmath animation savers; PNG remains in core',
+)
+option(
+    'tools',
+    type: 'array',
+    choices: ['', 'cli', 'audit', 'all'],
+    value: ['all'],
+    description: 'Build selected native tmath tools',
 )
 option(
     'bundled_thorvg',
@@ -23,12 +44,6 @@ option(
     type: 'boolean',
     value: true,
     description: 'Install Lua examples',
-)
-option(
-    'latex',
-    type: 'feature',
-    value: 'disabled',
-    description: 'Build the experimental native LaTeX-to-SVG command',
 )
 option(
     'ui',
@@ -59,10 +74,4 @@ option(
     type: 'feature',
     value: 'disabled',
     description: 'Build the experimental diagram authoring module',
-)
-option(
-    'chart',
-    type: 'feature',
-    value: 'disabled',
-    description: 'Build the experimental chart authoring module',
 )

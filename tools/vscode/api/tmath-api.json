@@ -1,0 +1,482 @@
+{
+  "globals": {
+    "scene": {
+      "description": "Create a tmath scene.",
+      "parameters": [{"name": "config", "type": "SceneConfig", "optional": true}],
+      "returns": "Scene"
+    },
+    "diagram": {
+      "description": "Create an experimental semantic Diagram builder for a Scene. Available only when the optional Diagram module is enabled.",
+      "parameters": [{"name": "scene", "type": "Scene"}, {"name": "config", "type": "DiagramConfig"}],
+      "returns": "Diagram"
+    },
+    "runtime": {
+      "description": "Create the optional experimental retained Lua fixed-step runtime for one Scene.",
+      "parameters": [{"name": "scene", "type": "Scene"}, {"name": "config", "type": "RuntimeConfig"}],
+      "returns": "Runtime"
+    },
+    "motion": {
+      "description": "Create the optional Scene-owned semantic motion controller. The host must advance its independent clock explicitly.",
+      "parameters": [{"name": "scene", "type": "Scene"}],
+      "returns": "MotionController"
+    }
+  },
+  "namespaces": {
+    "ui": {
+      "type": "UI",
+      "description": "Experimental interactive UI module. It is available only when tmath is built with optional UI support; one Panel is limited to 256 controls and bindings.",
+      "functions": {
+        "panel": {
+          "description": "Create the single experimental, Scene-owned UI Panel that composes interaction after timeline sampling.",
+          "parameters": [{"name": "scene", "type": "Scene"}],
+          "returns": "Panel"
+        }
+      }
+    },
+    "input": {
+      "type": "Input",
+      "description": "Experimental keyboard, pointer, and camera Input module. It is optional and independent from UI; one Controller is limited to 256 bindings.",
+      "functions": {
+        "controller": {
+          "description": "Create the single Scene-owned Input Controller that composes pointer and keyboard state after timeline sampling.",
+          "parameters": [{"name": "scene", "type": "Scene"}],
+          "returns": "InputController"
+        }
+      }
+    }
+  },
+  "types": {
+    "Diagram": {"description": "Experimental semantic diagram builder; available only with optional Diagram support."},
+    "DiagramNode": {"description": "Opaque node handle owned by one Diagram builder."},
+    "DiagramEdge": {"description": "Opaque edge handle owned by one Diagram builder."},
+    "DiagramZone": {"description": "Opaque zone handle owned by one Diagram builder."},
+    "DiagramBuilt": {"description": "Built Diagram object tree and its stable semantic lookups."},
+    "InputController": {"description": "Scene-owned input binding controller; available only with optional Input support."},
+    "Runtime": {"description": "Experimental retained Lua fixed-step context; available only with optional Lua Runtime support."},
+    "MotionController": {"description": "Scene-owned semantic state-transition controller; available only with optional Motion support."}
+  },
+  "factories": {
+    "group": {"config": "GroupConfig", "returns": "Group", "description": "Create a semantic object container."},
+    "space": {"config": "SpaceConfig", "returns": "Space", "description": "Create a 2D or 3D coordinate space."},
+    "point": {"config": "PointConfig", "returns": "Object", "description": "Create a point marker."},
+    "line": {"config": "LineConfig", "returns": "Object", "description": "Create a line segment."},
+    "arrow": {"config": "ArrowConfig", "returns": "Object", "description": "Create an arrow between two points."},
+    "vector": {"config": "VectorConfig", "returns": "Object", "description": "Create a vector from an origin and value."},
+    "circle": {"config": "CircleConfig", "returns": "Object", "description": "Create a circle."},
+    "rectangle": {"config": "RectangleConfig", "returns": "Object", "description": "Create a rectangle."},
+    "polygon": {"config": "PolygonConfig", "returns": "Object", "description": "Create a polygon from at least three points."},
+    "plot": {"config": "PlotConfig", "returns": "Object", "description": "Create a sampled function or polyline plot."},
+    "route": {"config": "RouteConfig", "returns": "Object", "description": "Create one directed polyline route whose dashed shaft and solid endpoint markers share one timeline state."},
+    "path": {"config": "PathConfig", "returns": "Object", "description": "Create a path from keyed contour commands."},
+    "curve": {"config": "CurveConfig", "returns": "Object", "description": "Create a cubic Bézier curve."},
+    "surface": {"config": "SurfaceConfig", "returns": "Object", "description": "Create a row-major 3D surface mesh."},
+    "text": {"config": "TextConfig", "returns": "Object", "description": "Create a text object."},
+    "picture": {"config": "PictureConfig", "returns": "Object", "description": "Create a picture from an SVG/PNG/JPG/WebP asset (SVG stays vector) or inline pixels."},
+    "cell": {"config": "CellConfig", "returns": "Object", "description": "Create a dense color cell grid."},
+    "connector": {"config": "ConnectorConfig", "returns": "Object", "description": "Create a connector between two object handles."}
+  },
+  "methods": {
+    "Scene": {
+      "viewport": {"description": "Mount a completed child scene into a normalized viewport.", "parameters": [{"name": "scene", "type": "Scene"}, {"name": "viewport", "type": "ViewportConfig"}]},
+      "scene_transition": {"description": "Sequence complete child scenes in one viewport.", "parameters": [{"name": "scenes", "type": "Scene[]"}, {"name": "config", "type": "SceneTransitionConfig"}]},
+      "play": {"description": "Animate one descriptor or an array of descriptors.", "parameters": [{"name": "animations", "type": "Animation|Animation[]"}, {"name": "duration", "type": "number", "optional": true}, {"name": "curve", "type": "Curve", "optional": true}, {"name": "lag", "type": "number", "optional": true}]},
+      "create": {"description": "Reveal targets by drawing their geometry.", "parameters": [{"name": "target", "type": "Object|Object[]"}, {"name": "duration", "type": "number", "optional": true}, {"name": "curve", "type": "Curve", "optional": true}, {"name": "lag", "type": "number", "optional": true}, {"name": "direction", "type": "CreateDirection", "optional": true}]},
+      "uncreate": {"description": "Hide targets by reversing their drawn geometry.", "parameters": [{"name": "target", "type": "Object|Object[]"}, {"name": "duration", "type": "number", "optional": true}, {"name": "curve", "type": "Curve", "optional": true}, {"name": "lag", "type": "number", "optional": true}, {"name": "direction", "type": "CreateDirection", "optional": true}]},
+      "fill_reveal": {"description": "Reveal target fills.", "parameters": [{"name": "target", "type": "Object|Object[]"}, {"name": "duration", "type": "number", "optional": true}, {"name": "curve", "type": "Curve", "optional": true}, {"name": "lag", "type": "number", "optional": true}]},
+      "draw_border_then_fill": {"description": "Draw target borders and then reveal their fills.", "parameters": [{"name": "target", "type": "Object|Object[]"}, {"name": "duration", "type": "number", "optional": true}, {"name": "curve", "type": "Curve", "optional": true}, {"name": "lag", "type": "number", "optional": true}, {"name": "direction", "type": "CreateDirection", "optional": true}]},
+      "write": {"description": "Reveal text or drawable targets in writing order.", "parameters": [{"name": "target", "type": "Object|Object[]"}, {"name": "duration", "type": "number", "optional": true}, {"name": "curve", "type": "Curve", "optional": true}, {"name": "lag", "type": "number", "optional": true}, {"name": "direction", "type": "CreateDirection", "optional": true}]},
+      "shift": {"description": "Animate targets by a parent-space vector.", "parameters": [{"name": "target", "type": "Object"}, {"name": "vector", "type": "Vec2|Vec3"}, {"name": "duration", "type": "number", "optional": true}, {"name": "curve", "type": "Curve", "optional": true}]},
+      "transform": {"description": "Animate a target to an absolute local-to-parent matrix.", "parameters": [{"name": "target", "type": "Object"}, {"name": "matrix", "type": "Mat4"}, {"name": "duration", "type": "number", "optional": true}, {"name": "curve", "type": "Curve", "optional": true}]},
+      "fade": {"description": "Animate target opacity.", "parameters": [{"name": "target", "type": "Object"}, {"name": "opacity", "type": "number"}, {"name": "duration", "type": "number", "optional": true}, {"name": "curve", "type": "Curve", "optional": true}]},
+      "fade_in": {"description": "Fade a target in with optional shift and scale effects.", "parameters": [{"name": "target", "type": "Object"}, {"name": "options", "type": "FadeConfig", "optional": true}]},
+      "fade_out": {"description": "Fade a target out with optional shift and scale effects.", "parameters": [{"name": "target", "type": "Object"}, {"name": "options", "type": "FadeConfig", "optional": true}]},
+      "grow_from_center": {"description": "Reveal a target by growing it from its center.", "parameters": [{"name": "target", "type": "Object"}, {"name": "duration", "type": "number", "optional": true}, {"name": "curve", "type": "Curve", "optional": true}]},
+      "grow_from_edge": {"description": "Reveal a target by growing one dimension from a fixed geometry-bounds edge.", "parameters": [{"name": "target", "type": "Object"}, {"name": "edge", "type": "\"left\"|\"right\"|\"bottom\"|\"top\""}, {"name": "duration", "type": "number", "optional": true}, {"name": "curve", "type": "Curve", "optional": true}]},
+      "shrink_to_center": {"description": "Hide a target by shrinking it to its center.", "parameters": [{"name": "target", "type": "Object"}, {"name": "duration", "type": "number", "optional": true}, {"name": "curve", "type": "Curve", "optional": true}]},
+      "indicate": {"description": "Briefly emphasize a target.", "parameters": [{"name": "target", "type": "Object"}, {"name": "options", "type": "IndicateConfig", "optional": true}]},
+      "morph": {"description": "Morph source geometry into target geometry.", "parameters": [{"name": "source", "type": "Object|Object[]"}, {"name": "target", "type": "Object|Object[]"}, {"name": "duration", "type": "number", "optional": true}, {"name": "curve", "type": "Curve", "optional": true}, {"name": "lag", "type": "number", "optional": true}]},
+      "replacement_transform": {"description": "Morph source to target and transfer visual identity.", "parameters": [{"name": "source", "type": "Object|Object[]"}, {"name": "target", "type": "Object|Object[]"}, {"name": "duration", "type": "number", "optional": true}, {"name": "curve", "type": "Curve", "optional": true}, {"name": "lag", "type": "number", "optional": true}]},
+      "fade_transform": {"description": "Cross-fade unrelated object families as one replacement.", "parameters": [{"name": "source", "type": "Object"}, {"name": "target", "type": "Object"}, {"name": "duration", "type": "number", "optional": true}, {"name": "curve", "type": "Curve", "optional": true}]},
+      "transition": {"description": "Cross-fade independent outgoing and incoming targets.", "parameters": [{"name": "outgoing", "type": "Object"}, {"name": "incoming", "type": "Object"}, {"name": "duration", "type": "number", "optional": true}, {"name": "curve", "type": "Curve", "optional": true}]},
+      "stroke": {"description": "Animate a target stroke to a literal or semantic Theme color.", "parameters": [{"name": "target", "type": "Object"}, {"name": "color", "type": "Color|ThemeColor"}, {"name": "duration", "type": "number", "optional": true}, {"name": "curve", "type": "Curve", "optional": true}]},
+      "fill": {"description": "Animate a target fill to a literal or semantic Theme color.", "parameters": [{"name": "target", "type": "Object"}, {"name": "color", "type": "Color|ThemeColor"}, {"name": "duration", "type": "number", "optional": true}, {"name": "curve", "type": "Curve", "optional": true}]},
+      "look": {"description": "Animate the scene camera.", "parameters": [{"name": "camera", "type": "CameraConfig"}, {"name": "duration", "type": "number", "optional": true}, {"name": "curve", "type": "Curve", "optional": true}]},
+      "wait": {"description": "Advance the timeline cursor.", "parameters": [{"name": "duration", "type": "number"}]},
+      "remove": {"description": "Remove a target at the current timeline cursor.", "parameters": [{"name": "target", "type": "Object"}]},
+      "duration": {"description": "Return the authored scene duration in seconds.", "parameters": [], "returns": "number"}
+    },
+    "Object": {
+      "label": {"description": "Create an ordinary child Text as this object's semantic label, using the complete Text configuration without automatic placement or color binding.", "parameters": [{"name": "config", "type": "TextConfig"}], "returns": "Object"},
+      "move_to": {"description": "Move this object to a parent-space point before animation begins.", "parameters": [{"name": "point", "type": "Vec2|Vec3"}]},
+      "next_to": {"description": "Place this object next to a sibling.", "parameters": [{"name": "other", "type": "Object"}, {"name": "direction", "type": "Vec2|Vec3"}, {"name": "gap", "type": "number", "optional": true}]},
+      "align_to": {"description": "Align this object to a sibling.", "parameters": [{"name": "other", "type": "Object"}, {"name": "direction", "type": "Vec2|Vec3"}]},
+      "arrange": {"description": "Arrange Group children in one direction.", "parameters": [{"name": "direction", "type": "Vec2|Vec3"}, {"name": "gap", "type": "number", "optional": true}]},
+      "arrange_grid": {"description": "Arrange Group children in a grid.", "parameters": [{"name": "columns", "type": "integer"}, {"name": "columnGap", "type": "number", "optional": true}, {"name": "rowGap", "type": "number", "optional": true}]}
+    },
+    "Space": {
+      "cell": {"description": "Sample a deterministic 2D color field.", "parameters": [{"name": "sample", "type": "fun(x:number, y:number, time:number):Color"}, {"name": "config", "type": "SampleConfig", "optional": true}], "returns": "Object"},
+      "voxel": {"description": "Sample a deterministic 3D color field.", "parameters": [{"name": "sample", "type": "fun(x:number, y:number, z:number, time:number):Color"}, {"name": "config", "type": "SampleConfig", "optional": true}], "returns": "Object"}
+    },
+    "Panel": {
+      "button": {"description": "Experimental: add a pointer button bound to exactly one camera action or target transform. Optional authored hover and pressed visuals are selected without mutating Scene objects; the last clicked Button transform wins for a shared target. The Panel-wide 256-control limit applies.", "parameters": [{"name": "config", "type": "PanelButtonConfig"}], "returns": "Panel"},
+      "toggle_button": {"description": "Experimental: add a pointer button that retains one binary state and smoothly alternates a target between explicit off and on transforms after each completed click.", "parameters": [{"name": "config", "type": "PanelToggleButtonConfig"}], "returns": "Panel"},
+      "slider": {"description": "Experimental: add a clamped horizontal or vertical control that interpolates either one target transform or a bounded list of synchronized target transforms.", "parameters": [{"name": "config", "type": "PanelSliderConfig"}], "returns": "Panel"},
+      "sample_area": {"description": "Experimental: add a click-only 2D sampler. A completed primary click evaluates the configured candidates in the currently composed Scene at the active render density, selects the topmost configured candidate whose isolated family composite has nonzero raster alpha under the Scene AA policy, then commits the optional marker and swatch bindings. Sampling has no Lua callback and does not run on hover or drag.", "parameters": [{"name": "config", "type": "PanelSampleAreaConfig"}], "returns": "Panel"},
+      "camera_move": {"description": "Experimental: add a persistent camera pan delta without mutating the authored camera timeline.", "parameters": [{"name": "delta", "type": "Vec2"}], "returns": "Panel"},
+      "camera_orbit": {"description": "Experimental: add a persistent 3D camera orbit delta without mutating the authored camera timeline.", "parameters": [{"name": "delta", "type": "Vec2"}], "returns": "Panel"},
+      "camera_zoom": {"description": "Experimental: add a persistent camera zoom delta without mutating the authored camera timeline.", "parameters": [{"name": "delta", "type": "number"}], "returns": "Panel"},
+      "camera_reset": {"description": "Experimental: clear persistent Panel camera deltas and its view override.", "parameters": [], "returns": "Panel"},
+      "camera_view": {"description": "Experimental: override the sampled camera with a 2D or 3D view until Panel camera reset.", "parameters": [{"name": "view", "type": "\"2d\"|\"3d\""}], "returns": "Panel"}
+    },
+    "InputController": {
+      "pointer_follow": {"description": "Bind passive pointer motion in one logical-pixel region to an exact parent-space target map, optionally rotating the target toward the newest pointer sample.", "parameters": [{"name": "config", "type": "InputPointerFollowConfig"}], "returns": "InputController"},
+      "key_move": {"description": "Bind one supported key as retained Down state that moves continuously until keyup and ignores platform repeat.", "parameters": [{"name": "config", "type": "InputKeyMoveConfig"}], "returns": "InputController"}
+    },
+    "Runtime": {
+      "bind_key": {"description": "Bind one logical key contribution to a named fixed-step action during authoring.", "parameters": [{"name": "action", "type": "string"}, {"name": "key", "type": "string"}, {"name": "value", "type": "Vec2", "optional": true}], "returns": "Runtime"},
+      "bind_pointer": {"description": "Bind one pointer button contribution to a named fixed-step action during authoring.", "parameters": [{"name": "action", "type": "string"}, {"name": "button", "type": "integer"}, {"name": "value", "type": "Vec2", "optional": true}, {"name": "pointer", "type": "integer", "optional": true}], "returns": "Runtime"},
+      "action": {"description": "Read a named Input action inside the fixed-step callback; transient edges are visible only in the first catch-up step.", "parameters": [{"name": "action", "type": "string"}], "returns": "RuntimeActionState"},
+      "key": {"description": "Read one logical key snapshot inside the fixed-step callback.", "parameters": [{"name": "key", "type": "string"}], "returns": "RuntimeKeyState"},
+      "pointer": {"description": "Read one logical-pixel pointer snapshot inside the fixed-step callback, or nil before that pointer is observed.", "parameters": [{"name": "pointer", "type": "integer", "optional": true}], "returns": "RuntimePointerState|nil"},
+      "sound": {"description": "Queue one bounded data-only sound event inside the fixed-step callback; return false when the 64-event host-advance queue is full.", "parameters": [{"name": "asset", "type": "string"}, {"name": "options", "type": "RuntimeSoundConfig", "optional": true}], "returns": "boolean"},
+      "update": {"description": "Atomically stage one bounded render-time Object overlay inside the fixed-step callback.", "parameters": [{"name": "object", "type": "Object"}, {"name": "state", "type": "RuntimeObjectState"}], "returns": "Runtime"},
+      "clear": {"description": "Atomically clear one Object overlay, or every runtime overlay when object is omitted, inside the fixed-step callback.", "parameters": [{"name": "object", "type": "Object", "optional": true}], "returns": "Runtime"}
+    },
+    "MotionController": {
+      "define": {"description": "Define one immutable complete semantic overlay state during scene construction.", "parameters": [{"name": "object", "type": "Object"}, {"name": "name", "type": "string"}, {"name": "state", "type": "MotionState"}], "returns": "MotionController"},
+      "transition": {"description": "Retarget one Object from the currently sampled overlay to a named state.", "parameters": [{"name": "object", "type": "Object"}, {"name": "state", "type": "string"}, {"name": "duration", "type": "number", "optional": true}, {"name": "curve", "type": "Curve", "optional": true}], "returns": "MotionController"},
+      "transition_many": {"description": "Atomically retarget one bounded array of Objects; every accepted target shares one transaction.", "parameters": [{"name": "targets", "type": "MotionTarget[]"}, {"name": "duration", "type": "number", "optional": true}, {"name": "curve", "type": "Curve", "optional": true}], "returns": "MotionController"},
+      "advance": {"description": "Advance the independent motion clock by a non-negative elapsed duration.", "parameters": [{"name": "elapsed", "type": "number"}], "returns": "MotionController"},
+      "sample": {"description": "Return the current complete relative overlay for a tracked Object.", "parameters": [{"name": "object", "type": "Object"}], "returns": "MotionState"},
+      "time": {"description": "Return the independent motion clock in seconds.", "parameters": [], "returns": "number"},
+      "active": {"description": "Return whether any motion track has not reached its target.", "parameters": [], "returns": "boolean"},
+      "definition_count": {"description": "Return the number of immutable Object-state definitions.", "parameters": [], "returns": "integer"},
+      "event_count": {"description": "Return the number of undrained accepted transition events.", "parameters": [], "returns": "integer"},
+      "event": {"description": "Return one one-based native acknowledgement event, or nil when the index is outside the journal.", "parameters": [{"name": "index", "type": "integer"}], "returns": "MotionEvent|nil"},
+      "clear_events": {"description": "Clear acknowledged native events without changing definitions, tracks, clock, or transaction sequence.", "parameters": [], "returns": "MotionController"}
+    },
+    "Diagram": {
+      "node": {"description": "Add a semantic node and return its builder-owned handle.", "parameters": [{"name": "config", "type": "DiagramNodeConfig"}], "returns": "DiagramNode"},
+      "connect": {"description": "Add a routed edge between two nodes and return its builder-owned handle.", "parameters": [{"name": "config", "type": "DiagramEdgeConfig"}], "returns": "DiagramEdge"},
+      "zone": {"description": "Add a labeled zone around one or more nodes.", "parameters": [{"name": "config", "type": "DiagramZoneConfig"}], "returns": "DiagramZone"},
+      "build": {"description": "Resolve layout and attach one ordinary Object subtree to the Scene.", "parameters": [], "returns": "DiagramBuilt"}
+    },
+    "DiagramBuilt": {
+      "root": {"description": "Return the complete generated Diagram subtree.", "parameters": [], "returns": "Group"},
+      "zones": {"description": "Return the generated zone layer.", "parameters": [], "returns": "Group"},
+      "routes": {"description": "Return the generated edge-route layer.", "parameters": [], "returns": "Group"},
+      "nodes": {"description": "Return the generated node layer.", "parameters": [], "returns": "Group"},
+      "annotations": {"description": "Return the generated annotation layer.", "parameters": [], "returns": "Group"},
+      "node": {"description": "Return the generated node group; its text remains in the annotation layer.", "parameters": [{"name": "node", "type": "DiagramNode"}], "returns": "Object"},
+      "node_body": {"description": "Return the generated body object for a node.", "parameters": [{"name": "node", "type": "DiagramNode"}], "returns": "Object"},
+      "node_label": {"description": "Return the generated label object for a node.", "parameters": [{"name": "node", "type": "DiagramNode"}], "returns": "Object"},
+      "node_detail": {"description": "Return the optional generated detail object for a node.", "parameters": [{"name": "node", "type": "DiagramNode"}], "returns": "Object|nil"},
+      "edge": {"description": "Return the complete generated route object for an edge.", "parameters": [{"name": "edge", "type": "DiagramEdge"}], "returns": "Object"},
+      "edge_label": {"description": "Return the optional generated label object for an edge.", "parameters": [{"name": "edge", "type": "DiagramEdge"}], "returns": "Object|nil"},
+      "zone": {"description": "Return the generated zone group; its text remains in the annotation layer.", "parameters": [{"name": "zone", "type": "DiagramZone"}], "returns": "Object"},
+      "zone_body": {"description": "Return the generated body object for a zone.", "parameters": [{"name": "zone", "type": "DiagramZone"}], "returns": "Object"},
+      "zone_label": {"description": "Return the generated label object for a zone.", "parameters": [{"name": "zone", "type": "DiagramZone"}], "returns": "Object"}
+    }
+  },
+  "configs": {
+    "MotionState": {
+      "origin": {"type": "Vec2|Vec3", "description": "Optional Object-local pivot; otherwise the Object-family bounds center is resolved when defining the state."},
+      "shift": {"type": "Vec2|Vec3", "description": "Parent-space translation relative to the authored Scene sample."},
+      "rotation": {"type": "number|Vec2|Vec3", "description": "Z radians or XYZ radians around origin."},
+      "scale": {"type": "Vec2|Vec3", "description": "XYZ scale around origin; a two-component value leaves Z at its default."},
+      "opacity": {"type": "number", "description": "Multiplicative opacity in [0, 1]."},
+      "progress": {"type": "number", "description": "Multiplicative draw progress in [0, 1]."}
+    },
+    "MotionTarget": {
+      "object": {"type": "Object", "required": true, "description": "Live Object owned by the controller Scene."},
+      "state": {"type": "string", "required": true, "description": "Previously defined state name for this Object."}
+    },
+    "MotionCurveRecord": {
+      "preset": {"type": "string", "required": true, "description": "Canonical preset name, or custom for a cubic Bézier curve."},
+      "strength": {"type": "number", "required": true, "description": "Recorded curve strength."},
+      "reverse": {"type": "boolean", "required": true, "description": "Whether the recorded curve is reversed."},
+      "bezier": {"type": "number[]", "description": "Four control coordinates for a custom cubic Bézier curve."}
+    },
+    "MotionEvent": {
+      "time": {"type": "number", "required": true, "description": "Controller-local motion-clock time at acceptance."},
+      "transaction": {"type": "string", "required": true, "description": "Controller-local uint64 transaction encoded as decimal text without precision loss."},
+      "object": {"type": "integer", "required": true, "description": "Scene-local numeric Object identifier."},
+      "state": {"type": "string", "required": true, "description": "Copied semantic state name."},
+      "duration": {"type": "number", "required": true, "description": "Accepted transition duration."},
+      "curve": {"type": "MotionCurveRecord", "required": true, "description": "Accepted symbolic animation curve."}
+    },
+    "RuntimeConfig": {
+      "fixed_step": {"type": "number", "description": "Deterministic callback step in seconds; defaults to 1/120 and must be at most 1."},
+      "max_steps": {"type": "integer", "description": "Maximum catch-up callbacks per host advance, from 1 to 64; defaults to 8."},
+      "update": {"type": "fun(ctx:Runtime, dt:number, time:number, tick:integer)", "required": true, "description": "Protected fixed-step callback retained with the Scene VM."}
+    },
+    "RuntimeObjectState": {
+      "origin": {"type": "Vec3", "description": "Optional fixed parent-space pivot; otherwise the authored Object family center is captured on first update."},
+      "shift": {"type": "Vec3", "description": "Parent-space translation over the authored Scene state."},
+      "rotation": {"type": "number|Vec3", "description": "Z radians or XYZ radians around origin."},
+      "scale": {"type": "Vec3", "description": "XYZ scale around origin."},
+      "opacity": {"type": "number", "description": "Multiplicative opacity in [0, 1]."},
+      "progress": {"type": "number", "description": "Multiplicative draw progress in [0, 1]."},
+      "fill": {"type": "Color|ThemeColor", "description": "Optional solid fill override resolved during the callback."}
+    },
+    "RuntimeSoundConfig": {
+      "bus": {"type": "\"music\"|\"effect\"|\"ui\"", "description": "Independent Audio bus description; defaults to effect."},
+      "gain": {"type": "number", "description": "Linear playback gain in [0, 4]."},
+      "rate": {"type": "number", "description": "Playback rate in [0.125, 8]."},
+      "loop": {"type": "boolean", "description": "Whether an Audio-capable host should loop this immediate voice."}
+    },
+    "RuntimeActionState": {
+      "previous": {"type": "Vec2", "required": true, "description": "Aggregate action value in the previous consumed input frame."},
+      "value": {"type": "Vec2", "required": true, "description": "Current clamped aggregate action value."},
+      "delta": {"type": "Vec2", "required": true, "description": "Current value minus previous value."},
+      "down": {"type": "boolean", "required": true, "description": "Whether any contributing source is currently held."},
+      "pressed": {"type": "boolean", "required": true, "description": "Aggregate Down edge for the first fixed step consuming this host frame."},
+      "released": {"type": "boolean", "required": true, "description": "Aggregate Up edge for the first fixed step consuming this host frame."}
+    },
+    "RuntimeKeyState": {
+      "begin": {"type": "number", "required": true, "description": "Time of the latest accepted key press."},
+      "end": {"type": "number", "required": true, "description": "Time of the latest accepted key transition."},
+      "previous": {"type": "boolean", "required": true, "description": "Held state in the previous consumed input frame."},
+      "down": {"type": "boolean", "required": true, "description": "Current held state."},
+      "pressed": {"type": "boolean", "required": true, "description": "Down edge for the first fixed step consuming this host frame."},
+      "released": {"type": "boolean", "required": true, "description": "Up edge for the first fixed step consuming this host frame."}
+    },
+    "RuntimePointerState": {
+      "position": {"type": "Vec2", "required": true, "description": "Latest logical Scene pixel position."},
+      "delta": {"type": "Vec2", "required": true, "description": "Accumulated logical-pixel motion in this input frame."},
+      "wheel": {"type": "Vec2", "required": true, "description": "Accumulated wheel motion in this input frame."},
+      "pointer": {"type": "integer", "required": true, "description": "Stable pointer identifier."},
+      "previous_buttons": {"type": "integer", "required": true, "description": "Previous consumed button mask."},
+      "buttons": {"type": "integer", "required": true, "description": "Current button mask."},
+      "pressed": {"type": "integer", "required": true, "description": "Button Down-edge mask for the first fixed step consuming this frame."},
+      "released": {"type": "integer", "required": true, "description": "Button Up-edge mask for the first fixed step consuming this frame."},
+      "active": {"type": "boolean", "required": true, "description": "Whether the pointer has not been cancelled or released by the host."}
+    },
+    "Animation": {
+      "target": {"type": "Object", "required": true, "description": "Distinct live target owned by this Scene."},
+      "shift": {"type": "Vec2|Vec3", "description": "Parent-space shift; mutually exclusive with transform."},
+      "transform": {"type": "Mat4", "description": "Absolute local-to-parent transform; mutually exclusive with shift."},
+      "opacity": {"type": "number", "description": "Target opacity from 0 to 1."},
+      "stroke": {"type": "Color|ThemeColor", "description": "Target stroke color."},
+      "fill": {"type": "Color|ThemeColor", "description": "Target fill color."},
+      "dash_offset": {"type": "number", "description": "Target shaft dash offset; requires an existing non-empty dash pattern."},
+      "tail": {"type": "number", "description": "Target solid tail-marker size for Arrow, Vector, Connector, or Route."},
+      "tip": {"type": "number", "description": "Target solid tip-marker size for Arrow, Vector, Connector, or Route."}
+    },
+    "DiagramLayersConfig": {
+      "zones": {"type": "integer", "description": "Sibling layer for zone backgrounds."},
+      "routes": {"type": "integer", "description": "Sibling layer for edge routes."},
+      "nodes": {"type": "integer", "description": "Sibling layer for nodes."},
+      "annotations": {"type": "integer", "description": "Sibling layer for labels and annotations."}
+    },
+    "DiagramConfig": {
+      "id": {"type": "string", "description": "Stable generated subtree identifier."},
+      "layout": {"type": "\"ranked\"|\"manual\"|\"grid\"|\"timeline\"", "description": "Bounded node layout strategy."},
+      "direction": {"type": "\"lr\"|\"left_to_right\"|\"tb\"|\"top_to_bottom\"", "description": "Rank direction and automatic port-routing bias."},
+      "origin": {"type": "Vec2", "description": "Layout origin; origin.x is time zero for timeline."},
+      "node_size": {"type": "Vec2", "description": "Default node width and height."},
+      "rank_gap": {"type": "number", "description": "Gap between consecutive ranks or grid columns."},
+      "node_gap": {"type": "number", "description": "Gap between nodes in one rank or layout rows."},
+      "time_unit": {"type": "number", "description": "Positive world-space width per timeline unit."},
+      "zone_padding": {"type": "number", "description": "Padding around zone members."},
+      "route_width": {"type": "number", "description": "Base route stroke width."},
+      "arrow_length": {"type": "number", "description": "Arrowhead length."},
+      "arrow_width": {"type": "number", "description": "Arrowhead width."},
+      "corner": {"type": "number", "description": "Node and zone corner radius."},
+      "layers": {"type": "DiagramLayersConfig", "description": "Generated sibling layer assignments."}
+    },
+    "DiagramNodeConfig": {
+      "id": {"type": "string", "required": true, "description": "Unique node identifier."},
+      "label": {"type": "string", "description": "Primary node label; defaults to id."},
+      "detail": {"type": "string", "description": "Optional secondary node label."},
+      "kind": {"type": "\"default\"|\"state\"|\"decision\"|\"terminal\"|\"entity\"|\"cell\"|\"task\"|\"evidence\"", "description": "Semantic Theme-derived node treatment."},
+      "rank": {"type": "integer", "description": "Explicit ranked-layout rank."},
+      "row": {"type": "integer", "description": "Zero-based grid or timeline row."},
+      "column": {"type": "integer", "description": "Zero-based grid column."},
+      "start": {"type": "number", "description": "Finite timeline start relative to origin.x."},
+      "span": {"type": "number", "description": "Positive timeline duration in time units."},
+      "position": {"type": "Vec2", "description": "Required node center for manual layout; optional ranked override."},
+      "size": {"type": "Vec2", "description": "Per-node width and height override."}
+    },
+    "DiagramEdgeConfig": {
+      "id": {"type": "string", "required": true, "description": "Unique edge identifier."},
+      "label": {"type": "string", "description": "Optional edge label."},
+      "from": {"type": "DiagramNode", "required": true, "description": "Source node handle from this Diagram."},
+      "to": {"type": "DiagramNode", "required": true, "description": "Destination node handle from this Diagram."},
+      "from_port": {"type": "\"auto\"|\"left\"|\"right\"|\"top\"|\"bottom\"", "description": "Source attachment port."},
+      "to_port": {"type": "\"auto\"|\"left\"|\"right\"|\"top\"|\"bottom\"", "description": "Destination attachment port."},
+      "route": {"type": "\"auto\"|\"straight\"|\"orthogonal\"", "description": "Route strategy."},
+      "kind": {"type": "\"directed\"|\"relation\"|\"return\"|\"error\"|\"optional\"", "description": "Semantic direction, marker, color, and dash treatment."},
+      "waypoints": {"type": "Vec2[]", "description": "One to sixteen explicit intermediate route points."},
+      "flow": {"type": "boolean", "description": "Render the edge itself as one dashed directed route."},
+      "flow_offset": {"type": "number", "description": "Initial shaft dash offset for a flow edge."}
+    },
+    "DiagramZoneConfig": {
+      "id": {"type": "string", "required": true, "description": "Unique zone identifier."},
+      "label": {"type": "string", "description": "Optional zone label."},
+      "members": {"type": "DiagramNode[]", "required": true, "description": "One or more node handles from this Diagram."},
+      "full_width": {"type": "boolean", "description": "Span all diagram nodes horizontally while retaining member-derived vertical bounds."}
+    },
+    "SceneConfig": {
+      "width": {"type": "integer", "description": "Canvas width in pixels."},
+      "height": {"type": "integer", "description": "Canvas height in pixels."},
+      "fps": {"type": "number", "description": "Authored frame rate."},
+      "loop": {"type": "boolean", "description": "Whether playback loops."},
+      "background": {"type": "Color", "description": "Canvas background color."},
+      "antialiasing": {"type": "boolean", "description": "Enable renderer antialiasing."},
+      "theme": {"type": "string|ThemeConfig", "description": "Built-in theme name (including adaptive_vscode in supporting IDE hosts) or custom theme."},
+      "camera": {"type": "CameraConfig", "description": "Camera view and interaction settings."}
+    },
+    "ThemeConfig": {
+      "preset": {"type": "string", "description": "Built-in Theme base preset."},
+      "background": {"type": "Color", "description": "Canvas background color."},
+      "text": {"type": "table", "description": "H1, H2, H3, text, and code typography overrides."},
+      "objects": {"type": "Color[]", "description": "Automatic 1..10 color cycle shared in order by lhs, rhs, every later args member, and other peer categories."},
+      "object_width": {"type": "number", "description": "Automatic object stroke width."},
+      "gradient": {"type": "boolean", "description": "Enable automatic object gradients."},
+      "end_gradient_stop": {"type": "Color", "description": "Automatic gradient end color."},
+      "axis": {"type": "table", "description": "Axis, grid, and label color overrides."},
+      "colors": {"type": "SemanticThemeConfig", "description": "Named semantic colors used by objects and emphasis effects."}
+    },
+    "SemanticThemeConfig": {
+      "foreground": {"type": "Color", "description": "Primary foreground color."},
+      "muted": {"type": "Color", "description": "De-emphasized foreground color."},
+      "accent": {"type": "Color", "description": "Primary accent or non-result emphasis color."},
+      "secondary": {"type": "Color", "description": "Secondary emphasis color."},
+      "success": {"type": "Color", "description": "Successful or valid state color."},
+      "warning": {"type": "Color", "description": "Warning state color."},
+      "danger": {"type": "Color", "description": "Error or destructive state color."},
+      "info": {"type": "Color", "description": "Informational state color."},
+      "surface": {"type": "Color", "description": "Raised or grouped surface color."},
+      "border": {"type": "Color", "description": "Boundary and divider color."},
+      "result": {"type": "Color", "description": "Returned value, derived result, or output data-structure color."},
+      "focus": {"type": "Color", "description": "Transient current-subject or important-region color."}
+    },
+    "GradientConfig": {
+      "type": {"type": "\"linear\"|\"radial\"|\"conic\"", "description": "Gradient kind; required."},
+      "stops": {"type": "(Color|ThemeColor|table)[]", "description": "2 to 8 stops: bare colors are evenly spaced, or {offset, color} pairs with non-decreasing offsets in 0..1. Omit to ramp from the paint color to the end stop."},
+      "from": {"type": "Vec2|Vec3", "description": "Linear start point in local coordinates; requires to."},
+      "to": {"type": "Vec2|Vec3", "description": "Linear end point in local coordinates; requires from."},
+      "center": {"type": "Vec2|Vec3", "description": "Radial or conic center in local coordinates; defaults to the shape bbox center."},
+      "radius": {"type": "number", "description": "Positive radial radius in local units; defaults to half the bbox diagonal or the circle radius."},
+      "focal": {"type": "Vec2|Vec3", "description": "Radial focal (start circle) center in local coordinates."},
+      "focal_radius": {"type": "number", "description": "Non-negative radial focal (start circle) radius in local units."},
+      "angle": {"type": "number", "description": "Conic start angle in degrees, clockwise from local +x as seen on screen."}
+    },
+    "ObjectConfig": {
+      "id": {"type": "string", "description": "Stable object identifier."},
+      "opacity": {"type": "number", "description": "Opacity from 0 to 1."},
+      "color": {"type": "Color|ThemeColor", "description": "Apply one literal or semantic Theme color to available stroke and fill paints."},
+      "fill": {"type": "Color|ThemeColor", "description": "Literal or semantic Theme fill color."},
+      "stroke": {"type": "Color|ThemeColor", "description": "Literal or semantic Theme stroke color."},
+      "gradient": {"type": "boolean|Color|ThemeColor|GradientConfig", "description": "true/false toggles the legacy two-stop linear ramp, a color sets its end stop, or a GradientConfig table selects a linear, radial, or conic gradient."},
+      "width": {"type": "number", "description": "Stroke width in pixels."},
+      "radius": {"type": "number", "description": "Style radius in pixels."},
+      "dash": {"type": "number[]", "description": "Stroke dash pattern."},
+      "dash_offset": {"type": "number", "description": "Stroke dash offset."},
+      "progress": {"type": "number", "description": "Draw progress from 0 to 1."},
+      "layer": {"type": "integer", "description": "Sibling paint order."}
+    },
+    "GroupConfig": {"matrix": {"type": "Mat4", "description": "Local-to-parent transform."}, "id": {"type": "string", "description": "Stable object identifier."}},
+    "SpaceConfig": {"x": {"type": "Range", "description": "Horizontal world range."}, "y": {"type": "Range", "description": "Vertical world range."}, "z": {"type": "Range", "description": "Depth world range."}, "axis_x": {"type": "Color|ThemeColor", "description": "X-axis literal or semantic Theme color."}, "axis_y": {"type": "Color|ThemeColor", "description": "Y-axis literal or semantic Theme color."}, "axis_z": {"type": "Color|ThemeColor", "description": "Z-axis literal or semantic Theme color."}, "numbers": {"type": "boolean", "description": "Draw axis numbers."}, "number_mode": {"type": "\"fixed\"|\"relative\"", "description": "Number label sizing mode."}, "number_size": {"type": "number", "description": "Number label size."}, "number_color": {"type": "Color|ThemeColor", "description": "Number label literal or semantic Theme color."}, "matrix": {"type": "Mat4", "description": "Local-to-parent transform."}, "id": {"type": "string", "description": "Stable object identifier."}},
+    "PointConfig": {"point": {"type": "Vec2|Vec3", "required": true, "description": "Point in parent coordinates."}, "radius": {"type": "number", "description": "Marker radius in pixels."}},
+    "LineConfig": {"from": {"type": "Vec2|Vec3", "required": true, "description": "Start point."}, "to": {"type": "Vec2|Vec3", "required": true, "description": "End point."}, "stroke": {"type": "Color|ThemeColor", "description": "Literal or semantic Theme stroke color."}, "width": {"type": "number", "description": "Stroke width in pixels."}},
+    "ArrowConfig": {"from": {"type": "Vec2|Vec3", "required": true, "description": "Start point."}, "to": {"type": "Vec2|Vec3", "required": true, "description": "End point."}, "tail": {"type": "number", "description": "Tail size in pixels."}, "tip": {"type": "number", "description": "Tip size in pixels."}},
+    "VectorConfig": {"origin": {"type": "Vec2|Vec3", "description": "Vector origin."}, "value": {"type": "Vec2|Vec3", "required": true, "description": "Vector value."}, "tail": {"type": "number", "description": "Tail size in pixels."}, "tip": {"type": "number", "description": "Tip size in pixels."}},
+    "CircleConfig": {"center": {"type": "Vec2|Vec3", "description": "Circle center."}, "radius": {"type": "number", "description": "Radius in world units."}},
+    "RectangleConfig": {"center": {"type": "Vec2|Vec3", "description": "Rectangle center."}, "size": {"type": "Vec2", "required": true, "description": "Width and height in world units."}, "corner": {"type": "number", "description": "Corner radius."}},
+    "PolygonConfig": {"points": {"type": "Vec2[]|Vec3[]", "required": true, "description": "At least three polygon vertices."}},
+    "PlotConfig": {"points": {"type": "Vec2[]|Vec3[]", "description": "Explicit plot samples."}, "fn": {"type": "fun(x:number):number", "description": "Deterministic function to sample."}, "x_range": {"type": "Range", "description": "Inclusive sampling range."}},
+    "RouteConfig": {"points": {"type": "Vec2[]|Vec3[]", "required": true, "description": "At least two ordered route vertices."}, "tail": {"type": "number", "description": "Solid tail-marker size in pixels."}, "tip": {"type": "number", "description": "Solid tip-marker size in pixels."}},
+    "PathConfig": {"commands": {"type": "PathCommand[]", "required": true, "description": "Move, line, quadratic, cubic, and close commands."}, "samples": {"type": "integer", "description": "Curve sampling count."}},
+    "CurveConfig": {"from": {"type": "Vec2|Vec3", "required": true, "description": "Start point."}, "control1": {"type": "Vec2|Vec3", "required": true, "description": "First control point."}, "control2": {"type": "Vec2|Vec3", "required": true, "description": "Second control point."}, "to": {"type": "Vec2|Vec3", "required": true, "description": "End point."}, "samples": {"type": "integer", "description": "Curve sampling count."}},
+    "SurfaceConfig": {"points": {"type": "Vec3[]", "required": true, "description": "Row-major surface vertices."}, "size": {"type": "Vec2", "required": true, "description": "Column and row count."}, "mode": {"type": "\"solid\"|\"mesh\"|\"solid_mesh\"", "description": "Surface drawing mode."}, "shading": {"type": "boolean", "description": "Enable surface shading."}},
+    "TextConfig": {"text": {"type": "string", "required": true, "description": "Text content."}, "point": {"type": "Vec2|Vec3", "description": "Text anchor point."}, "font": {"type": "string", "description": "Registered font or asset name."}, "size": {"type": "number", "description": "Font size in pixels."}, "align": {"type": "Vec2", "description": "Horizontal and vertical alignment."}, "role": {"type": "string", "description": "Theme typography role."}, "fill": {"type": "Color|ThemeColor", "description": "Literal or semantic Theme text color."}},
+    "PictureConfig": {"asset": {"type": "string", "description": "Registered asset name, or a path relative to the script (svg, png, jpg, webp)."}, "pixels": {"type": "Color[]", "description": "Dense row-major inline pixels."}, "size": {"type": "Vec2", "description": "Inline pixel dimensions."}, "center": {"type": "Vec2|Vec3", "description": "Picture center."}, "width": {"type": "number", "description": "Picture width in world units."}, "filter": {"type": "\"bilinear\"|\"nearest\"", "description": "Sampling filter."}},
+    "CellConfig": {"color": {"type": "Color|ThemeColor", "description": "Base literal or semantic Theme cell color."}, "origin": {"type": "Vec2|Vec3", "description": "Grid origin."}, "size": {"type": "Vec2", "required": true, "description": "Grid columns and rows."}, "mode": {"type": "\"full\"|\"padd\"", "description": "Cell rendering mode."}, "padding": {"type": "number", "description": "Cell padding."}, "depth": {"type": "number", "description": "Cell depth."}, "texture": {"type": "string", "description": "Texture asset name."}, "source": {"type": "table", "description": "Source texture region."}, "destination": {"type": "table", "description": "Destination cell region."}, "patches": {"type": "table[]", "description": "Region color patches supporting literal or semantic Theme colors."}},
+    "ConnectorConfig": {"from": {"type": "Object", "required": true, "description": "Source object."}, "to": {"type": "Object", "required": true, "description": "Destination object."}, "padding": {"type": "number", "description": "Endpoint padding."}, "tail": {"type": "number", "description": "Tail size in pixels."}, "tip": {"type": "number", "description": "Tip size in pixels."}},
+    "ViewportConfig": {"x": {"type": "number", "required": true, "description": "Normalized left coordinate."}, "y": {"type": "number", "required": true, "description": "Normalized top coordinate."}, "width": {"type": "number", "required": true, "description": "Normalized width."}, "height": {"type": "number", "required": true, "description": "Normalized height."}},
+    "SceneTransitionConfig": {"duration": {"type": "number", "description": "Transition duration in seconds."}, "hold": {"type": "number", "description": "Hold duration in seconds."}, "curve": {"type": "Curve", "description": "Animation curve."}, "viewport": {"type": "ViewportConfig", "description": "Normalized viewport."}},
+    "FadeConfig": {"shift": {"type": "Vec2|Vec3", "description": "Parent-space offset."}, "scale": {"type": "number", "description": "Relative scale."}, "duration": {"type": "number", "description": "Duration in seconds."}, "curve": {"type": "Curve", "description": "Animation curve."}},
+    "IndicateConfig": {"color": {"type": "Color|ThemeColor", "description": "Temporary emphasis color; defaults to the Theme focus role."}, "scale": {"type": "number", "description": "Temporary scale."}, "duration": {"type": "number", "description": "Duration in seconds."}, "curve": {"type": "Curve", "description": "Animation curve."}},
+    "RegionConfig": {
+      "x": {"type": "number", "required": true, "description": "Logical-pixel left coordinate in the Canvas."},
+      "y": {"type": "number", "required": true, "description": "Logical-pixel top coordinate in the Canvas."},
+      "width": {"type": "number", "required": true, "description": "Positive logical-pixel hit-region width."},
+      "height": {"type": "number", "required": true, "description": "Positive logical-pixel hit-region height."}
+    },
+    "UITransformConfig": {
+      "shift": {"type": "Vec3", "description": "Runtime translation composed after the authored timeline."},
+      "scale": {"type": "Vec3", "description": "Runtime scale composed after the authored timeline."},
+      "rotation": {"type": "Vec3", "description": "Runtime XYZ rotation in radians composed after the authored timeline."},
+      "opacity": {"type": "number", "description": "Runtime opacity factor from 0 to 1."},
+      "progress": {"type": "number", "description": "Runtime draw-progress factor from 0 to 1."}
+    },
+    "PanelButtonConfig": {
+      "visual": {"type": "Object", "required": true, "description": "Independent Scene object reserved as this control's idle button visual."},
+      "hover_visual": {"type": "Object", "description": "Optional independent, non-nested Scene object reserved for this button and shown while the logical pointer is inside its region."},
+      "pressed_visual": {"type": "Object", "description": "Optional independent, non-nested Scene object reserved for this button and shown while the primary pointer is pressed inside its region."},
+      "region": {"type": "RegionConfig", "required": true, "description": "Explicit logical-pixel pointer region."},
+      "camera": {"type": "\"move\"|\"pan\"|\"orbit\"|\"zoom\"|\"reset\"|\"view2d\"|\"view3d\"", "description": "Camera action performed after a completed click; use exactly one of camera or target."},
+      "delta": {"type": "Vec2", "description": "Pan, orbit, or zoom action delta."},
+      "target": {"type": "Object", "description": "Scene object receiving a click-selected transform; use exactly one of target or camera."},
+      "transform": {"type": "UITransformConfig", "description": "Transform selected after a completed click; the last clicked Button wins when several Buttons share a target."},
+      "duration": {"type": "number", "description": "Optional smooth target-transition duration in Scene seconds; zero changes immediately."}
+    },
+    "PanelToggleButtonConfig": {
+      "visual": {"type": "Object", "required": true, "description": "Independent Scene object reserved as this control's idle visual."},
+      "hover_visual": {"type": "Object", "description": "Optional independent, non-nested Scene object shown while the logical pointer is inside the control region."},
+      "pressed_visual": {"type": "Object", "description": "Optional independent, non-nested Scene object shown while the primary pointer is pressed inside the control region."},
+      "region": {"type": "RegionConfig", "required": true, "description": "Explicit logical-pixel pointer region."},
+      "target": {"type": "Object", "required": true, "description": "Scene object receiving the retained binary-state transform."},
+      "off": {"type": "UITransformConfig", "required": true, "description": "Target transform while the retained value is false."},
+      "on": {"type": "UITransformConfig", "required": true, "description": "Target transform while the retained value is true."},
+      "value": {"type": "boolean", "description": "Initial retained state; false by default."},
+      "duration": {"type": "number", "description": "Optional smooth off/on transition duration in Scene seconds; zero changes immediately."}
+    },
+    "SliderBindingConfig": {
+      "target": {"type": "Object", "required": true, "description": "Scene object receiving this synchronized Slider transform."},
+      "from": {"type": "UITransformConfig", "description": "Transform at slider value 0."},
+      "to": {"type": "UITransformConfig", "description": "Transform at slider value 1."}
+    },
+    "PanelSliderConfig": {
+      "visual": {"type": "Object", "required": true, "description": "Independent Scene object reserved as this control's slider visual."},
+      "target": {"type": "Object", "description": "Scene object receiving the interpolated runtime transform. Use this single-target form or bindings, never both."},
+      "bindings": {"type": "SliderBindingConfig[]", "description": "One to 256 synchronized target mappings. Cannot be combined with top-level target, from, or to."},
+      "region": {"type": "RegionConfig", "required": true, "description": "Explicit logical-pixel pointer region."},
+      "axis": {"type": "\"horizontal\"|\"vertical\"", "description": "Logical-pixel slider direction."},
+      "value": {"type": "number", "description": "Initial clamped value from 0 to 1."},
+      "from": {"type": "UITransformConfig", "description": "Transform at slider value 0."},
+      "to": {"type": "UITransformConfig", "description": "Transform at slider value 1."}
+    },
+    "PanelSampleAreaConfig": {
+      "region": {"type": "RegionConfig", "required": true, "description": "Logical-pixel click region. A successful sample stores normalized top-left-origin coordinates: (0, 0) at the region top-left and (1, 1) at the bottom-right."},
+      "targets": {"type": "Object[]", "required": true, "description": "Between 1 and 64 distinct Scene-owned configured candidates with no ancestor/descendant relationship. The topmost candidate whose isolated family composite has nonzero raster alpha wins; returned identity is that configured candidate, not an internal leaf paint."},
+      "marker": {"type": "Object", "description": "Optional independent childless Scene Object or Group hidden until the first successful sample, then shifted after the current composed state is sampled."},
+      "marker_origin": {"type": "Vec3", "description": "Marker parent-space runtime shift at normalized u=0 and v=0; marker is required when this field is supplied."},
+      "marker_x": {"type": "Vec3", "description": "Marker parent-space runtime-shift contribution at normalized u=1; marker is required when this field is supplied."},
+      "marker_y": {"type": "Vec3", "description": "Marker parent-space runtime-shift contribution at normalized top-to-bottom v=1; marker is required when this field is supplied."},
+      "swatch": {"type": "Object", "description": "Optional independent, non-gradient Scene Rectangle whose solid fill becomes the selected candidate-family composite in straight RGBA, isolated from the background and non-family Objects and rasterized with the Scene AA policy."}
+    },
+    "InputPointerFollowConfig": {
+      "target": {"type": "Object", "required": true, "description": "Scene object receiving the pointer-derived runtime transform."},
+      "region": {"type": "RegionConfig", "required": true, "description": "Logical-pixel pointer region mapped to normalized coordinates u and v."},
+      "target_origin": {"type": "Vec3", "description": "Parent-space home pivot moved to the mapped point and used for pointer-facing rotation; defaults to the parent-space origin."},
+      "map_origin": {"type": "Vec3", "required": true, "description": "Parent-space position at the region's top-left corner."},
+      "map_x": {"type": "Vec3", "required": true, "description": "Parent-space contribution at normalized u=1."},
+      "map_y": {"type": "Vec3", "required": true, "description": "Parent-space contribution at normalized top-to-bottom v=1."},
+      "period": {"type": "number", "description": "Smooth transition period in Scene seconds for each newest pointer sample; defaults to 0.18."},
+      "rotate": {"type": "boolean", "description": "Rotate the target toward the newest mapped pointer position; true by default."},
+      "angle_offset": {"type": "number", "description": "Additional Z rotation in radians after the pointer-facing angle."},
+      "reset_on_leave": {"type": "boolean", "description": "Smoothly restore the authored transform after pointer cancel or leave."}
+    },
+    "InputKeyMoveConfig": {
+      "target": {"type": "Object", "required": true, "description": "Scene object receiving continuous held-key motion."},
+      "key": {"type": "\"ArrowLeft\"|\"ArrowRight\"|\"ArrowUp\"|\"ArrowDown\"|\"Space\"|\"Enter\"|\"Escape\"|\"Shift\"|\"Tab\"|\"A-Z\"|\"0-9\"|\"Plus\"|\"Minus\"", "required": true, "description": "Supported logical key name."},
+      "shift": {"type": "Vec3", "required": true, "description": "Parent-space displacement applied per period while the key is down."},
+      "period": {"type": "number", "description": "Initial acceleration and displacement period in Scene seconds; zero applies one immediate Down-edge shift; defaults to 0.12."}
+    },
+    "CameraConfig": {"mode": {"type": "\"fixed\"|\"interactive\"", "description": "Camera interaction mode."}, "view": {"type": "\"2d\"|\"3d\"", "description": "Camera view."}, "target": {"type": "Vec2|Vec3", "description": "Camera target."}, "eye": {"type": "Vec3", "description": "3D camera eye."}, "up": {"type": "Vec3", "description": "3D camera up vector."}, "fov": {"type": "number", "description": "Perspective field of view in radians."}, "height": {"type": "number", "description": "Orthographic view height."}, "near": {"type": "number", "description": "Near clipping plane."}, "far": {"type": "number", "description": "Far clipping plane."}, "projection": {"type": "\"perspective\"|\"orthographic\"", "description": "3D projection mode."}},
+    "SampleConfig": {"mode": {"type": "string", "description": "Sampling display mode."}, "padding": {"type": "number", "description": "Gap between cells."}, "duration": {"type": "number", "description": "Sampling duration in seconds."}, "fps": {"type": "number", "description": "Sampling frame rate."}}
+  }
+}

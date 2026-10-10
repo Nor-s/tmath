@@ -2,7 +2,7 @@
 
 tmath scenes are retained object trees sampled at an explicit time. A coordinate grid is optional: a Scene can own a `Circle`, `Rectangle`, `Text`, or semantic `Group` directly, so an array, memory buffer, tree, or sorting trace does not need a `Space`.
 
-This document is the contract for composition, ownership, authoring, animation, and sampling. [architecture.md](architecture.md) describes the renderer pipeline, while the [Lua API reference](../skills/tmath-skills/references/lua.md) lists concrete authoring calls.
+This document is the contract for composition, ownership, authoring, animation, and sampling. [architecture.md](architecture.md) describes the renderer pipeline, while the [Lua API reference](../tools/skill/tmath-skills/references/lua.md) lists concrete authoring calls.
 
 ## Composition
 
@@ -13,7 +13,7 @@ This document is the contract for composition, ownership, authoring, animation, 
 - `Space::cell`/`voxel` and their Lua/JavaScript forms may sample those ranges over a bounded authoring-time time lattice and attach a Group of batched planar/spatial Cells. The callback is not retained.
 - Other Objects paint their own geometry and may still own children. This makes a shape plus its annotation a single semantic subtree without requiring a wrapper Group.
 
-Lua and JavaScript expose the same factories on Scene and every Object handle: `group`, `space`, `point`, `line`, `arrow`, `vector`, `circle`, `rectangle`, `polygon`, `plot`, `route`, `path`, `curve`, `surface`, `text`, `ruler`, `svg`, `image`, `cell`, and `connector`. The receiver becomes the direct parent. Scene creates roots; an Object factory creates a child. C++ constructs a concrete type with its `gen()` function, then transfers it through `Scene::add()` or `Object::add()`.
+Lua and JavaScript expose the same factories on Scene and every Object handle: `group`, `space`, `point`, `line`, `arrow`, `vector`, `circle`, `rectangle`, `polygon`, `plot`, `route`, `path`, `curve`, `surface`, `text`, `picture`, `cell`, and `connector`. The receiver becomes the direct parent. Scene creates roots; an Object factory creates a child. C++ constructs a concrete type with its `gen()` function, then transfers it through `Scene::add()` or `Object::add()`.
 
 ```text
 Scene
@@ -108,16 +108,46 @@ Text contributes its world anchor, not a font-dependent glyph box. These rules k
 
 For final layout validation, `SwRenderer::bounds(scene, object, time, output)` lowers the selected Object and its descendants through the normal display-list and ThorVG paint path. The returned `BBox` is an axis-aligned top-left pixel rectangle after animation sampling, ancestor transforms, camera projection, glyph shaping, and painted stroke expansion. Fully transparent commands do not contribute. `SwRenderer::intersects(...)` compares two such boxes; a positive `padding` specifies the minimum clear pixel gap. Merely touching edges is not an intersection at zero padding.
 
-The C/WASM surface exposes the same operation for root-Scene Object IDs through `tmath_bounds`, `tmath_intersects`, `scene.bounds`, and `scene.intersects`. For complete composition review, `SwRenderer::layout`, `scene.layoutReport`, and `tmath_layout_report*` flatten nested Viewports into root output pixels. Each object entry separates its own painted commands (`paintBounds`) from its descendant-inclusive family (`familyBounds`). Independent objects produce overlap/minimum-gap candidates; ancestor-descendant pairs produce containment results by comparing the ancestor's own paint with the descendant family, so a child cannot enlarge its container and hide overflow.
+The C/WASM surface exposes the same operation for root-Scene Object IDs through `tmath_bounds`, `tmath_intersects`, `scene.bounds`, and `scene.intersects`. For complete composition review, `SwRenderer::layout`, `scene.layoutReport`, and `tmath_layout_report*` flatten nested Viewports into root output pixels. Each object entry separates its own painted commands (`paintBounds`) from its descendant-inclusive family (`familyBounds`). The accompanying visual entries represent physical sampled paint: they refer to a primary Object index, optionally relate the other identity of a transition morph, and carry their own bounds, clip, composition opacity, occlusion, and stable/morph/fade kind. `LayoutVisual::opacity` is the quantized transition/group multiplier; authored Object, Style, and Picture alpha still determines `visible` but is not folded into that number. `occluded` records full coverage by the later opaque mounted Scene identified by `occluder`; effective visibility is `visible && !occluded`. Independent, effectively visible physical visuals produce overlap/minimum-gap candidates; ancestor-descendant pairs produce containment results by comparing the ancestor's own paint with the descendant family, so a child cannot enlarge its container and hide overflow.
+
+`LayoutPath` records each rendered path's sampled vertices in root output pixels and
+references its owning visual. It also exposes fill/stroke/closed flags, the scaled
+stroke width, and a conservative paint envelope. Point storage is owned by the
+`LayoutReport` and remains valid until that report is destroyed or reused by another
+layout call.
+
+`LayoutCollision::first` and `second` remain Object indexes for ABI compatibility.
+They name each physical visual's primary Object; a morph therefore reports its source
+identity there, while the target identity remains on `LayoutVisual::counterpart`.
+
+An open Scene transition reports both authored stage paths. Compatible equal-ID
+commands share one morph visual; incompatible and unmatched commands remain separate
+incoming/outgoing fade visuals, and nested Viewports are faded as groups. At an exact
+transition endpoint only the selected stable stage is reported. Use Object records to
+answer "which authored element owns this?" and visual records to answer "what is
+actually painted in this frame?".
 
 The CLI can audit a complete file without producing an image:
 
 ```sh
-build/tmath layout examples/lua/vector_operations.lua --time 2.0 --padding 4 \
-  --font examples/assets/Pretendard.ttf
+build/tmath layout src/examples/lua/object_gallery.lua --time 2.0 --padding 4 \
+  --font src/examples/assets/Pretendard.ttf
 ```
 
-The JSON keeps the legacy local records under `.scene` and places the flattened composition under `.report`, including Scene paths, root-pixel own/family bounds, ancestor clips, stretch flags, independent-object collisions, and parent/descendant containment. Use authoring `Bounds` to place objects before sealing; use the sampled whole-Scene report at every encoded frame for final geometry validation, then inspect the worst raster frames for actual occlusion and glyph quality.
+The flattened `.report.paths` array exposes the same physical path records alongside
+`.report.visuals`; Viewport and camera composition are already reflected in their
+root-pixel points.
+
+The JSON keeps the legacy local records under `.scene` and places the flattened composition under `.report`, including Scene paths, semantic Objects, physical visuals, root-pixel own/family bounds, ancestor clips, full opaque-Scene occlusion, stretch flags, independent-visual collisions, and parent/descendant containment. Use authoring `Bounds` to place objects before sealing; use the sampled whole-Scene report at every encoded frame for final geometry validation, then inspect the worst raster frames for partial or shape-level occlusion and glyph quality.
+
+For a production-font, full-timeline pass/fail gate, use `tmath audit`. It samples
+every saver frame and includes the exact final time, enforces Text canvas and Text/Text gaps,
+and accepts an explicit Text-to-Rectangle containment ledger. Semantic failures exit
+with status `1` and remain machine-readable as `tmath.layout-audit/v1` JSON. See
+[Full-timeline layout audit](layout-audit.md) for its contract and output. When the
+optional Diagram module is present, it joins the retained IR to sampled root-pixel
+paths for route/node, route/label, route/route, and route/clip diagnostics without
+mutating the scene.
 
 `moveTo`, `nextTo`, and `alignTo` update an Object model from these bounds. Points and directions are in the direct parent's coordinates, and `nextTo`/`alignTo` require both Objects to have the same direct parent. `Group::arrange` lays children out in Group coordinates along one direction, and `Group::arrangeGrid` uses columns and row/column gaps. Lua uses `move_to`, `next_to`, `align_to`, `arrange`, and `arrange_grid`; JavaScript uses the camel-case forms.
 
@@ -149,7 +179,6 @@ Lua and JavaScript provide a compact animation vocabulary above the same retaine
 - `indicate` temporarily applies a color and a scale greater than one, then restores the exact incoming visual state at the end of the clip.
 - `morph` and `replacement_transform`/`replacementTransform` use replacement semantics. A call accepts one source/target pair or equally sized arrays of pairs, with optional lag for a staggered batch. Geometry pairs must be distinct, childless, same-parent `Polygon`, `Plot`, `Path`, or `Curve` objects with equal sampled point counts; Path topology must also agree. Sampled Cell/Voxel Groups are not Morph geometry—put the change in their callback's `time` argument. Handles must be distinct across a batch. Attach all targets at the current cursor immediately before scheduling the morph; they must have no earlier clips. At the end each source is dead and its target handle remains active for subsequent animation.
 - `fade_transform`/`fadeTransform`/`Scene::fadeTransform` replaces one live Object with a newly attached target of any family through a simultaneous cross-fade. The target must be distinct, belong to the same Scene, be outside the source's ancestor/descendant chain, be born at the current cursor, and have no earlier clips. Scheduling hides the target before the boundary, fades both objects in one timeline slot, marks the source dead at the end, and leaves the target live. Use object `transition` for a non-consuming group cross-fade.
-- `style_group`/`styleGroup`/`Scene::styleGroup` binds one semantic color to explicit live Object `stroke`, `fill`, or `both` channels before those members' first clips. Omit the group color to infer it from the first member's selected channel; `both` inference succeeds only when stroke and fill match. This lets an automatically cycled operand establish the identity for its label and proxies. Supply `result` or `focus` explicitly for those fixed semantic roles. One `style` call emits simultaneous color clips for every live member. A channel belongs to at most one StyleGroup; Morph and Fade Transform transfer consumed membership to the live target, and remove detaches it.
 
 Every animation helper and fixed-camera `look` accepts an `AnimCurve`. The original string values remain source-compatible, and five expressive presets extend them:
 
@@ -214,7 +243,7 @@ scene:replacement_transform(vector_copy, bullet, 0.7, "ease_in_out")
 scene:fade_transform(bullet, label, 0.22, "gentle")
 ```
 
-For a typing treatment, morph the copy into an opaque narrow polygon, then animate each text chunk's opacity and the cursor's shift in the same `play` call. See `examples/lua/text_reveal_transitions.lua` for both the bullet and cursor recipes.
+For a typing treatment, morph the copy into an opaque narrow polygon, then animate each text chunk's opacity and the cursor's shift in the same `play` call. See `src/examples/lua/text_reveal_transitions.lua` for both the bullet and cursor recipes.
 
 The single-property animation helpers remain useful. Composite target-state animation adds one atomic way to change several visual properties together. C++ uses `AnimationTarget`; Lua and JavaScript use a `play` descriptor:
 

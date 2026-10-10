@@ -4,7 +4,7 @@ tmath is a semantic math-animation engine. Scene objects never inherit ThorVG pa
 
 ```text
 C++ / resource-limited Lua / typed JavaScript
-       + optional Diagram / Chart lowering
+       + optional Diagram lowering
                     |
                     v
  Scene/Viewport tree + independent timelines/Object trees
@@ -20,9 +20,49 @@ C++ / resource-limited Lua / typed JavaScript
    ThorVG SwCanvas      ThorVG GlCanvas
 ```
 
+## Diagram IR lifetime and audit boundary
+
+The optional Diagram module compiles a bounded semantic inventory into an ordinary
+Object tree, but lowering does not discard the source meaning. A versioned, immutable
+Diagram IR receipt is owned with the generated root and remains queryable after the
+native builder or bounded Lua VM has been destroyed. The receipt retains semantic
+string IDs, authored configuration, node/edge/zone specifications, computed
+placements, route points, membership, and non-owning bindings to the generated
+Objects. Builder handle indices are transient lookup slots and are not serialization
+identity.
+
+This is a native tmath compile receipt, not a Manim scene format or compatibility
+layer.
+
+`tmath audit` walks every root, Viewport, and transition Scene, finds those retained
+receipts, and joins them to the stable Scene path. It derives exact label/detail-to-body
+containment policy and runs deterministic local constraint validation before sampling
+the existing renderer layout report. Core exposes module-neutral root-pixel path
+geometry; only the optional Diagram library interprets those paths as semantic routes,
+nodes, or labels. This keeps the responsibilities distinct and preserves a core-only
+build with `-Ddiagram=disabled`:
+
+```text
+Diagram inventory -> versioned IR + Object tree
+       |                       |
+       +-> static constraints  +-------------------------+
+                                                         |
+display list -> CPU LayoutReport visuals + sampled paths |
+       |                                                 |
+       +-> generic layout consumers       Diagram physical audit
+```
+
+The retained IR and current validator report compile-time geometry issues such as
+invalid placements and local node/zone conflicts without mutating the generated tree.
+The separate physical validator joins stable receipt bindings to each sampled visual
+and checks route/node, route/label, route/route, and route/clip clearance after
+transforms, camera projection, and Viewport composition. It diagnoses the authored
+route rather than mutating straight paths or waypoints. The audit samples delivery
+frames; it is not continuous collision detection or a replacement for raster review.
+
 ## Scene and Object composition
 
-The public hierarchy is `Scene -> Object -> Object`. A Scene can own any root Object, and every Object can own children. `Group` is the paintless semantic container; `Space` is the coordinate-system Object with ranges, axes, and optional numbers. The remaining types are geometry (`Point`, `Line`, `Arrow`, `Vector`, `Circle`, `Rectangle`, `Polygon`, `Plot`, `Path`, `Curve`, `SurfaceMesh`, `Connector`), annotations (`Text`, `Ruler`), and assets/cells (`Svg`, `Image`, `Cell`). Lua and JavaScript expose the complete factory set on Scene and every Object handle, so neither a Group nor a Space is mandatory.
+The public hierarchy is `Scene -> Object -> Object`. A Scene can own any root Object, and every Object can own children. `Group` is the paintless semantic container; `Space` is the coordinate-system Object with ranges, axes, and optional numbers. The remaining types are geometry (`Point`, `Line`, `Arrow`, `Vector`, `Circle`, `Rectangle`, `Polygon`, `Plot`, `Path`, `Curve`, `SurfaceMesh`, `Connector`), annotations (`Text`), and assets/cells (`Picture`, `Cell`). `Picture` keeps an Asset's original encoded bytes, so SVG assets stay vector at any scale while PNG/JPG/WebP and inline pixels render as rasters. Lua and JavaScript expose the complete factory set on Scene and every Object handle, so neither a Group nor a Space is mandatory.
 
 Every Object owns one row-major affine local-to-parent `Mat4`; every spatial value is a `Vec3`. Lua and JavaScript accept two components as a concise form and lift them to `z=0`, but they do not create a different object type. Rendering composes every ancestor rather than only Spaces:
 
@@ -86,8 +126,9 @@ A 3D cursor still requires a chosen hit plane or object intersection; a screen c
 ## Optional UI, Input, and runtime composition
 
 The experimental `tmath-ui` module is an optional C++ sidecar selected with
-`-Dui=true`. Its `Panel` owns hit testing and pointer capture only for its visible
-controls; Scene and renderer code do not dispatch button or slider events. A host may
+`-Dmodules=ui` (`-Dui=true` remains a compatibility alias). Its `Panel` owns hit
+testing and pointer capture only for its visible controls; Scene and renderer code do
+not dispatch button or slider events. A host may
 construct and render the complete Panel without delivering any input. A visible `UIObject`
 uses an ordinary Group/Object visual tree, so lowering, clipping, depth ordering, and
 painting follow the existing Object path without a UI-specific renderer type; a
@@ -115,10 +156,11 @@ frame. `InsufficientCondition` is the transparent-miss result; other sampler fai
 remain distinguishable in `InputResult::status` and the WASM input error flag.
 
 The experimental `tmath-input` module is a separate C++ sidecar selected with
-`-Dinput=true`. It owns logical key/pointer events, declarative PointerFollow and
-KeyMove bindings, retained key state, native Tap/Down/Up triggers, and interactive
-camera state. KeyMove uses the first keydown as a Down edge, ignores platform repeat,
-and samples continuous motion until the matching keyup records its end time. It neither includes nor links UI. An
+`-Dmodules=input` (`-Dinput=true` remains a compatibility alias). It owns logical
+key/pointer events, declarative PointerFollow and KeyMove bindings, retained key state,
+native Tap/Down/Up triggers, and interactive camera state. KeyMove uses the first
+keydown as a Down edge, ignores platform repeat, and samples continuous motion until
+the matching keyup records its end time. It neither includes nor links UI. An
 Input-only host can therefore move ordinary Scene Objects and the camera without a
 Panel, control face, or UI symbol. Conversely, UI neither includes nor links Input.
 
@@ -145,6 +187,20 @@ opacity, progress, fill, and Camera/View in registration order before ancestor
 composition and display-list lowering. A module-private `RuntimeModifier::key` prevents
 two owners of the same sidecar type while `data` identifies the exact registration for
 replacement and removal.
+
+The optional `tmath-motion` module uses this seam for semantic, interruptible Object
+state. A `motion::Controller` retains named relative overlays and advances on a
+host-owned interaction clock, independent of immutable authored Scene time. Retargeting
+captures the currently sampled overlay without mutating it during render, then records
+the accepted command as a bounded event transaction. Its first contract covers local
+transform origin, shift, rotation, scale, opacity, and progress; fill, stroke, path
+topology, text replacement, and durable semantic identity remain outside the module.
+See [Semantic runtime motion](motion.md).
+
+Core contributes only the pure runtime-composition seam and local Object-family bounds
+needed for a stable pivot. The module owns clocks, named states, retarget policy, and
+its bounded acknowledgement journal; semantic identity and durable replay stay in the
+host.
 
 Each callback receives the requested Scene time, so a layer can apply time-independent
 state or an intentional deterministic function of both time and retained input. With
@@ -176,7 +232,7 @@ bindings. Arbitrary native trigger callbacks remain outside construction-only Lu
 Lua-disabled build supplies an independent `NonSupport` stub for each enabled
 authoring sidecar.
 
-`tmath-lua-runtime` is an opt-in exception selected with `-Dlua_runtime=true` and
+`tmath-lua-runtime` is an opt-in exception selected with `-Dmodules=runtime` and
 identified by `TMATH_LUA_RUNTIME` only in hosts that assemble its hook. Core, UI, and
 Input do not depend on it. Even when compiled, a normal script closes exactly as
 before; only an explicit `tmath.runtime(scene, config)` transfers its VM to one
@@ -245,22 +301,22 @@ define a 3D ray, world-space point, object-local coordinate, or depth intersecti
 
 ## Optional authoring sidecars
 
-`tmath-diagram` and `tmath-chart` are separately selectable authoring libraries. They
-depend on the public tmath object model but the core library never depends on either
-one. Diagram stores bounded node, edge, zone, port, ranked/manual/grid/timeline layout,
-semantic kind, full-width band, and waypoint descriptions; Chart stores bounded
-quantitative ranges and line/bar series. Their `build()` steps
-perform deterministic layout or scale mapping and return a detached owning Group
+`tmath-diagram` is a separately selectable authoring library via
+`-Dmodules=diagram`. It
+depends on the public tmath object model but the core library never depends on it.
+Diagram stores bounded node, edge, zone, port, ranked/manual/grid/timeline layout,
+semantic kind, full-width band, and waypoint descriptions. Its `build()` step
+performs deterministic layout and returns a detached owning Group
 tree. Transferring that root to a Scene erases the authoring distinction: all later
 timeline sampling, display-list lowering, renderer selection, and saving use the
 existing ordinary Object paths.
 
-The optional Lua bindings follow the same boundary. `tmath.diagram(scene, config)`
-and `tmath.chart(scene, config)` collect semantic descriptions while the bounded VM
+The optional Lua binding follows the same boundary. `tmath.diagram(scene, config)`
+collects semantic descriptions while the bounded VM
 is alive, lower them once, recursively charge the complete generated subtree against
 the core Lua Scene budgets, and expose protected non-owning handles for animation.
-The module hook chain is assembled only by native CLI and WASM hosts that link those
-libraries. A core-only loader has no Diagram or Chart symbols. External Mermaid,
+The module hook chain is assembled only by native CLI and WASM hosts that link that
+library. A core-only loader has no Diagram symbols. External Mermaid,
 DOT, and draw.io parsers remain importer/tool concerns rather than runtime module
 dependencies.
 
@@ -268,7 +324,7 @@ dependencies.
 
 `Scene::add()` transfers any root Object, and `Object::add()` transfers a child subtree. The Scene keeps a flat non-owning identity/timeline index while Scene roots and Object nodes own the actual tree. Attachment records the current cursor as `born` and snapshots geometry, style, and local model. At cursor zero, native callers may edit an attached public definition and call `Scene::update(object)` to revalidate and refresh its base snapshot. `Text::text(value)` performs that refresh internally and rolls its private string payload back if the Scene rejects it. The first `play()`, `look()`, `wait()`, or `remove()` seals definitions already attached; a fully authored subtree may still be attached later and is born at that later cursor.
 
-Later visual changes use immutable compact clips. Composite `AnimationTarget` and Lua/JavaScript `play` descriptors combine shift or transform, opacity, stroke, fill, and dashed-stroke offset into one `VisualState` clip per distinct target. Dash-offset motion is accepted only for an Object that already owns a non-empty dash pattern; the renderer interpolates the sampled offset through the same backend-neutral style path. A Scene-owned StyleGroup maps one semantic color to explicit live Object stroke/fill channels and expands each recolor into the same atomic target clips; its initial color may be explicit or inferred from the first selected channel, and channel ownership cannot overlap. Morph and Fade Transform transfer consumed membership to the live target, while remove detaches it. Effect clips additionally preserve path direction, pixel-relative scale, transient there-and-back state, or a replacement morph target. `fadeTransform()` atomically schedules paired FadeOut/FadeIn clips for unrelated object families and records the source's exclusive dead boundary at the shared end. Validation and reservation cover the complete group before an atomic commit. `look()` schedules a fixed-camera clip; `wait()` advances the cursor; `remove()` records an exclusive dead boundary.
+Later visual changes use immutable compact clips. Composite `AnimationTarget` and Lua/JavaScript `play` descriptors combine shift or transform, opacity, stroke, fill, and dashed-stroke offset into one `VisualState` clip per distinct target. Dash-offset motion is accepted only for an Object that already owns a non-empty dash pattern; the renderer interpolates the sampled offset through the same backend-neutral style path. Effect clips additionally preserve path direction, pixel-relative scale, transient there-and-back state, or a replacement morph target. `fadeTransform()` atomically schedules paired FadeOut/FadeIn clips for unrelated object families and records the source's exclusive dead boundary at the shared end. Validation and reservation cover the complete group before an atomic commit. `look()` schedules a fixed-camera clip; `wait()` advances the cursor; `remove()` records an exclusive dead boundary.
 
 At render time the engine samples base states, clips, and retained temporal Cell/Voxel frames at the requested `t`, composes ancestor state, resolves sampled family bounds and Connectors, projects/clips geometry, lowers and sorts the display list, composes isolated Viewports, then renders and synchronizes the backend. Sampling neither advances the cursor nor mutates a previous frame. Core has no arbitrary per-frame callback updater; the sampled `cell` and `voxel` authoring helpers have already materialized every retained time sample before this pipeline starts. The optional retained Lua sidecar runs only when its host explicitly advances the separate fixed-step clock, then contributes bounded overlays through the same sampling seam. Repeated and out-of-order renders are deterministic for the same authored time and committed runtime state. The full authoring and sampling lifecycle is specified in [scene-composition.md](scene-composition.md).
 
@@ -290,6 +346,19 @@ One ThorVG canvas renders the final tree, so the root Scene owns output width, h
 
 At a boundary, both stages build unsorted display lists at their own configured resolutions and cameras. Non-empty Object IDs map source registry entries to target registry entries. Compatible command spans interpolate; path commands use 64-point arc-length sampling with closed-contour direction and start-point alignment. Changed equal-ID text dissolves out and then in to avoid layout collisions; other incompatible spans cross-fade. The blended list is then sorted once, rendered at the source stage size, mounted into the normalized transition Viewport, and clipped. Background colors interpolate, while nested Viewports and nested transition sequences remain isolated groups and cross-fade. The complete render tree shares the existing command and depth limits.
 
+Sampled layout keeps authored identity separate from physical transition paint. During
+an open transition, `LayoutReport` exposes both stage `LayoutScene`s and both sets of
+`LayoutObject`s. Its `LayoutVisual` sidecar measures the commands that the renderer
+actually blended: a compatible match is one `Morph` visual related to two Object
+indexes, while incompatible or unmatched commands remain distinct `FadeOut` and
+`FadeIn` visuals. Nested Viewport and sequence content is group-faded rather than
+object-matched. Exact transition endpoints expose only the stable selected stage.
+This prevents one interpolated shape from becoming a false self-collision without
+discarding either stage's semantic ownership. The report also preserves clip-visible
+bounds while marking a visual `occluded` when a later, fully opaque mounted Scene
+background covers it completely. `occluder` identifies that Scene; collision consumers
+use `visible && !occluded`.
+
 Ownership transfer is atomic. Validation and allocation complete before any stage is sealed; on failure the caller retains every Scene. On success the parent becomes their sole owner and destroys the complete sequence. Rendering is still arbitrary-time and stateless: the transition reads immutable stage final frames and does not advance or mutate either stage.
 
 ## Renderers and savers
@@ -302,7 +371,7 @@ mismatches fail with no cross-engine fallback. The compatibility `SwRenderer` an
 
 The internal backend registry is the extension seam for another engine such as WG:
 add one adapter and one unavailable-build stub, register the new engine in the facade,
-and select its source in Meson. Backend-neutral Scene lowering, CPU inspection, and
+and select its source in `src/core/renderer/meson.build`. Backend-neutral Scene lowering, CPU inspection, and
 existing GL code do not depend on that adapter. A WG enum value and target contract
 should be exposed only when its adapter is implemented rather than reserving a public
 value that cannot render.
@@ -317,17 +386,65 @@ current. Each Viewport is a transformed, clipped ThorVG Scene group rather than 
 flattened command merge, so sibling layer and depth values cannot interfere. The PNG
 writer is dependency-free.
 
-ThorVG edge antialiasing is selected by the root Scene for the shared canvas and is consistent across SW/GL creation. It is independent from Image sampling, which selects bilinear or nearest filtering.
+### Retained ThorVG paint tree
+
+Both adapters drive ThorVG in retained mode through one shared `RetainedTree`
+(`src/core/renderer/tvg/tmathTvgRenderer.cpp`). The DisplayList stage is unchanged
+(layout reports and audits still read it); only its translation to ThorVG is retained.
+The tree's root `tvg::Scene` is attached to the canvas once and stays attached; each
+frame diffs the new DisplayList against it and edits paints in place, then
+`update()`/`draw()`/`sync()` let ThorVG re-prepare only the paints that changed.
+
+- **Nodes.** One `RetainedNode` per lowered DisplayList: a retained `tvg::Scene` holding
+  `[background rect, command paints..., mounts...]`. A mount is a Viewport, sequence
+  stage or scene transition: a retained wrapper Scene with its clipper rectangle around
+  the child node's Scene, whose matrix places the child. Mounts are matched by position
+  and by (kind, Scene pointer, Scene serial, transition partner); a mismatch releases
+  the old subtree.
+- **Identity.** A command's paint is keyed by (object, counterpart, command type, rank),
+  where rank counts the commands the same object/counterpart pair emitted before it in
+  emission order (`DrawCommand::order`), so depth sorting never changes identities.
+  Blended transition lists use the same key, with the morph partner as counterpart.
+- **Updates.** Each property is compared bitwise with the value last applied and set
+  only when it changed: path points (`Shape::reset()` + re-append), circle geometry,
+  fill/stroke colors, stroke width/cap/dash, gradients (a new `Fill` only when the
+  resolved stops/geometry differ), text string/size/align/color/opacity/matrix, and
+  picture matrix/opacity/filter. Structural changes replace the paint in place in the
+  z-order: Shape stroke on/off, dash on/off, gradient on/off, Text font or
+  matrix-vs-translation mode, and any change of a Picture source (bytes pointer, size,
+  MIME or pixels), so ThorVG's loader cache always sees stable byte pointers. Two
+  ThorVG behaviours are compensated so a retained paint renders exactly like a fresh
+  one: the CPU engine derives fill coverage and its antialiasing (which depends on
+  stroke width and stroke alpha) only when the path is dirty, so fill alpha crossing
+  zero or a stroke width/alpha change re-appends the path; and Text only re-lays out
+  glyphs on `text()`, so a size or align change also resets the string.
+- **Order.** Paints that disappear are detached and released; the remaining children
+  are reconciled with the new order using minimal `Scene::remove()`/`Scene::add(p, at)`
+  edits outside the common prefix and suffix, or a linear detach-and-reattach of the
+  retained paints when more than 64 positions changed (depth-sorted 3D).
+- **Invalidation.** Each `Scene` has a process-unique serial. A different Scene
+  pointer or serial (including a new Scene at a recycled address), a recreated canvas
+  (antialiasing change), or any sync error resets the whole tree; the next frame
+  rebuilds it. Size, background and pixel ratio are ordinary diffed properties; the
+  canvas is retargeted only when the buffer or GL target actually changes, because
+  retargeting damages every paint.
+
+`src/test/testRetained.cpp` renders example scenes with one reused renderer
+(forward playback, backward and random seeks, interleaved scenes, reloads at a
+recycled address, resize, pixel ratio and background changes) and requires every
+frame to equal a fresh renderer's output pixel for pixel.
+
+Native builds compile both engines by default (`engines=['cpu', 'gl']`); `Renderer::defaultEngine()` stays CPU because PNG/GIF/MP4 saving and layout inspection read CPU pixels. Meson drops GL with a warning when the platform provides no OpenGL (macOS OpenGL framework; libGL/libEGL/libGLESv2 on Linux) and always for Emscripten, whose WebAssembly API is CPU RGBA. ThorVG loads GL entry points at runtime, so no GL link dependency is added. On macOS a system ThorVG is probed for a working `GlCanvas` and the bundled subproject is used if it lacks the GL engine. `src/test/testGlParity.cpp` renders shapes/dashes, text, linear/radial/conic gradients, SVG and raw-pixel Pictures, a 3D SurfaceMesh, a Viewport, and a mid-fade frame with both engines and bounds the mean channel difference and the share of pixels differing by more than 32. Known difference: ThorVG's SW nearest-neighbour upscaler samples with a half-texel offset, so `ImageFilter::Nearest` Pictures shift texel edges relative to GL.
+
+ThorVG edge antialiasing is selected by the root Scene for the shared canvas and is consistent across SW/GL creation. It is independent from Picture sampling, which selects bilinear or nearest filtering.
 
 Native `Saver::video()` streams constant-cadence RGBA frames to external FFmpeg through a sibling temporary file and renames only after success. GIF and MP4 keep separate format modules over that shared frame pipeline. WASM exposes synchronized RGBA; the Playground encodes GIF/MP4 in browser libraries.
 
-`Saver::lottie()` writes raw `.json` Lottie with the root Scene dimensions, selected FPS, an exclusive `op`, and one-frame vector layers sampled from the same DisplayList used by ThorVG. Path, Circle, Text, and Number commands become Lottie shape/text objects; Space, grids, cells, 3D projection, Viewports, clipping, and Scene transitions are already lowered through those commands and retain their composition order. The writer follows the properties consumed by ThorVG's Lottie parser (`ks`, `shapes`, `masksProperties`, fill/stroke, and text documents) and commits through a sibling temporary file. The same serializer can target an engine-owned memory buffer for the filesystem-free C/WASM API; JavaScript copies those bytes before returning them. File-backed Svg and pixel Image commands currently return `NonSupport` instead of silently rasterizing an otherwise vector export.
-
 ## Assets, images, and cells
 
-`AssetLoader` loads a file, encoded memory, or raw `ABGR8888S` pixels. Encoded PNG/JPG/WebP/SVG goes through a ThorVG `Picture` and a one-time CPU offscreen decoder so Image and Cell always consume the same straight-alpha RGBA representation. That decoder is an explicit CPU utility module rather than a hidden render fallback: GL-only builds return `NonSupport` for encoded assets, while raw pixels remain available. The pinned native/WASM CPU build enables those four loaders. File-backed Lua resolves relative asset paths from the Lua file directory; filesystem-free WASM registers bytes by name through `scene.asset()` before scene load.
+`AssetLoader` loads a file, encoded memory, or raw `ABGR8888S` pixels. A path load reads the file and follows the same path as encoded memory. Encoded PNG/JPG/WebP/SVG keeps its original bytes and MIME type; `Picture` hands those bytes directly to a ThorVG `Picture`, so SVG stays vector at any scale. Only `Cell` texture sampling needs straight-alpha RGBA, which the CPU decoder produces lazily on first use. GL-only builds return `NonSupport` for encoded assets, while raw pixels remain available. File-backed Lua resolves relative asset paths from the Lua file directory; filesystem-free WASM registers bytes by name through `scene.asset()` before scene load.
 
-`Image` copies an Asset and stores one parent-local center plus world-unit width. Height is derived from the pixel aspect ratio before ancestor matrices are composed; nonuniform ancestor scale is therefore an explicit distortion. ThorVG receives one affine image transform. Under an orthographic camera this is exact; a strongly perspective-warped image plane is an affine approximation because ThorVG has no projective texture primitive. Use Cell pixels/voxels when exact per-cell perspective structure matters.
+`Picture` copies an Asset's encoded bytes (or raw pixels) and stores one parent-local center plus world-unit width. Height is derived from the intrinsic aspect ratio before ancestor matrices are composed; nonuniform ancestor scale is therefore an explicit distortion. ThorVG receives one affine image transform. Under an orthographic camera this is exact; a strongly perspective-warped image plane is an affine approximation because ThorVG has no projective texture primitive. Use Cell pixels/voxels when exact per-cell perspective structure matters.
 
 `Cell` stores up to 16,384 colors as one scene object. Its integer local region is a dense batch rather than thousands of timeline objects. `fill()` paints a rectangular cell region and `texture()` nearest-samples a source image rectangle into a destination rectangle. `Full` uses complete unit cells; `Padd` insets them, defaulting to 5%. In planar view each visible cell lowers to one quad. In spatial view it lowers to a local +Z voxel with back-face rejection and ambient plus camera-headlight shading; there is intentionally no light graph, shadowing, or material system.
 
@@ -335,32 +452,51 @@ Native `Saver::video()` streams constant-cadence RGBA frames to external FFmpeg 
 
 ## Text, formulas, and trust
 
-Fonts are registered explicitly, including byte-backed fonts in WASM. TeX stays outside the core. A build configured with `-Dlatex=enabled` adds the experimental native `tmath latex` precompiler, which launches `latex` and `dvisvgm` without a shell and writes SVG. Expressions remain trusted TeX input. Native SVG paths access the host filesystem and therefore require trusted input plus an application asset policy; filesystem-free WASM does not build the precompiler or support file-backed SVG. Plane-oriented Text currently returns `NonSupport` from the Lottie saver because the text layer exporter does not encode arbitrary projected affine transforms.
+Fonts are registered explicitly, including byte-backed fonts in WASM. TeX stays outside the core. Native SVG paths access the host filesystem and therefore require trusted input plus an application asset policy; filesystem-free WASM does not support file-backed SVG.
 
 ## Source layout
 
 ```text
-inc/                    public C++ and C APIs
-src/common/             vectors, matrices, camera, easing
-src/loaders/            ThorVG-backed asset normalization
-src/scene/              unified objects, ownership, timeline, camera input
-src/renderer/           display-list lowering
-src/renderer/tvg/       ThorVG SW/GL adapter
-src/savers/             shared PNG/timeline code and format-specific GIF/Video/Lottie sinks
-src/bindings/lua/       resource-limited Lua scene DSL
-src/ui/                 optional controls, input routing, sampling bindings, camera helpers
-src/input/              optional logical key/pointer state, actions, and camera adapter
-src/lua_runtime/        optional retained VM, fixed-step scheduler, and Object overlays
-src/diagram/            optional semantic flow layout, routing, and Object lowering
-src/chart/              optional quantitative series mapping and Object lowering
-bindings/wasm/          narrow C ABI over Lua + SW RGBA
-tools/                  command-line renderer/inspector
-test/                   numeric, scene, renderer, Lua, C/JS binding tests
-examples/               Lua sources and browser Playground
-skills/tmath-skills/    public animation, diagram, and visualization workflow
-skills/tmath-game/      experimental interactive/runtime/audio game authoring
-skills/tmath-vscode/    VS Code use, IntelliSense, manifests, and series delivery
-skills/tmath-animation-dev/ repository contributor workflow and synchronization checks
+src/inc/                      public C++ and C APIs
+src/core/                     everything compiled into libtmath and the module libraries
+src/core/common/              vectors, matrices, camera, easing
+src/core/loaders/             ThorVG-backed asset normalization
+src/core/scene/               unified objects, ownership, timeline, camera input
+src/core/renderer/            display-list lowering; tvg/ holds the ThorVG SW/GL adapter
+src/core/savers/              shared PNG/timeline code and format-specific GIF/Video sinks
+src/core/lua/                 resource-limited Lua scene DSL
+src/core/motion/              optional semantic motion controller
+src/core/diagram/             optional semantic flow layout, routing, and Object lowering
+src/core/ui/ src/core/input/  optional controls, pointer/key state, actions, camera adapter
+src/core/lua_runtime/         optional retained VM, fixed-step scheduler, and Object overlays
+src/core/audio/               optional authored audio transport
+src/bindings/wasm/            narrow C ABI over Lua + SW RGBA (Emscripten artifact)
+src/bindings/js/              JavaScript builder and browser runtime client
+src/cli/                      tmath CLI: render, inspect, layout, audit
+src/test/                     numeric, scene, renderer, Lua, C/JS binding tests
+src/examples/                 Lua sources and assets
+tools/vscode/                 VS Code extension
+tools/skill/                  authoring skills (tmath-skills, tmath-game, tmath-vscode, tmath-animation-dev)
+scripts/                      wasm32 cross file, wasm-bundle.sh (build + sync WASM bundles)
 ```
 
-The layers stay shallow: no renderer-specific scene graph, plugin framework, reflection system, or per-frame object deep copy.
+### Build layout
+
+Meson follows ThorVG's layout. The root `meson.build` reads options, derives feature
+flags, resolves ThorVG/Lua, calls `subdir()`, and prints the summary.
+`src/core/meson.build` visits each core folder, whose own `meson.build` appends to the
+shared `tmath_sources`/`tmath_inc`/`tmath_dependencies` lists (engine, saver, and Lua
+stub selection live there too), then builds `libtmath` and the enabled optional module
+libraries. `src/meson.build` calls into `core/`, writes the pkg-config files, and
+configures the hosts. To add a source file, edit only its folder's `meson.build`.
+`src/cli/meson.build` and `src/bindings/wasm/meson.build` (plus the copy list in
+`src/bindings/js/meson.build`) configure the CLI and Emscripten runtime; the root
+declares those two executables so `build/tmath` and `build/tmath-wasm.js` keep their
+paths. Tests live in `src/test/meson.build` (C++ unit tests and Node/TypeScript tests),
+`src/examples/meson.build` (install list and example inspect/render tests), and
+`tools/skill/meson.build` (skill-template checks); each is a table driven by `foreach`.
+
+The layers stay shallow: no renderer-specific scene graph, dynamic plugin ABI,
+reflection system, or per-frame object deep copy. Host-side editor integrations are data/API consumers rather than native core dependencies. See
+[Core, native modules, and host plugins](modules.md) for the compile-time selection
+contract.
